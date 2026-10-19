@@ -1,0 +1,63 @@
+# Builds the additional language pack for every platform OxyPad is released
+# for. The release workflow calls it and attaches the zips to the release,
+# where OxyPad's "Get Language Pack" button sends users. It can also be run
+# by hand from the Actions tab; the zips are then kept as workflow artifacts.
+name: Language pack
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: macos-15, platform: macos-universal }
+          - { runner: windows-2022, platform: windows-x86_64, msvc: x64, arch: x86_64 }
+          # Built on x64 with the ARM64 cross compiler.
+          - { runner: windows-2022, platform: windows-aarch64, msvc: amd64_arm64, arch: aarch64 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: language-pack
+
+      # The tool runs on the build machine; only the grammars it compiles
+      # target the pack's platform.
+      - name: Build the pack tool
+        run: cargo build --release -p oxypad-language-pack
+      - name: Visual Studio compiler
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.msvc }}
+
+      - name: Build the pack
+        shell: bash
+        env:
+          OXYPAD_PACK_ARCH: ${{ matrix.arch }}
+        run: target/release/oxypad-language-pack dist
+
+      - name: Archive (macOS)
+        if: runner.os != 'Windows'
+        run: |
+          cd dist
+          for pack in oxypad-languages-*; do zip -qr "../$pack.zip" "$pack"; done
+      - name: Archive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Get-ChildItem dist -Directory | ForEach-Object {
+            Compress-Archive -Path $_.FullName -DestinationPath "$($_.Name).zip"
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oxypad-languages-${{ matrix.platform }}
+          path: oxypad-languages-*.zip
+          if-no-files-found: error

@@ -1,0 +1,216 @@
+name: Release
+
+# Pushing a tag such as v0.1.0 builds OxyPad for macOS (Apple silicon, Intel)
+# and Windows (x64, ARM64), plus the language pack, and publishes a GitHub
+# Release with all of them. The tag must match the version in Cargo.toml, and
+# CHANGELOG.md must have a "## [X.Y.Z]" section, used as the release notes.
+# Running it by hand from the Actions tab builds everything without
+# publishing; the files are kept as workflow artifacts.
+#
+# macOS signing and notarization are optional. Without these repository
+# secrets the app is signed ad hoc and the release notes explain how to open it:
+#   DEVELOPER_ID_CERTIFICATE_P12       base64 of the "Developer ID Application" .p12
+#   DEVELOPER_ID_CERTIFICATE_PASSWORD  password of that .p12
+#   DEVELOPER_ID_APPLICATION           identity, e.g. "Developer ID Application: Name (TEAMID)"
+#   APPLE_TEAM_ID                      Team ID
+#   APPLE_ID, APPLE_APP_PASSWORD       Apple ID and app-specific password for notarytool
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    name: Check version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        run: |
+          VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+          [[ -n "$VERSION" ]] || { echo "::error::No version in Cargo.toml"; exit 1; }
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            if [[ "v$VERSION" != "$GITHUB_REF_NAME" ]]; then
+              echo "::error::Tag $GITHUB_REF_NAME does not match version $VERSION in Cargo.toml"
+              exit 1
+            fi
+            if ! grep -q "^## \[$VERSION\]" CHANGELOG.md; then
+              echo "::error::CHANGELOG.md has no \"## [$VERSION]\" section"
+              exit 1
+            fi
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  macos:
+    name: macOS DMGs
+    needs: version
+    # Both DMGs come from one Apple silicon runner (Intel is cross-compiled):
+    # macOS minutes are the expensive ones.
+    runs-on: macos-15
+    env:
+      HAS_SIGNING: ${{ secrets.DEVELOPER_ID_CERTIFICATE_P12 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: macos
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Import Developer ID certificate
+        if: env.HAS_SIGNING == 'true'
+        env:
+          P12: ${{ secrets.DEVELOPER_ID_CERTIFICATE_P12 }}
+          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$KEYCHAIN" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          # shellcheck disable=SC2046 # one argument per existing keychain
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/certificate.p12"
+
+      - name: Build DMGs
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+          DEVELOPER_ID_APPLICATION: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          scripts/build-dmg.sh apple-silicon
+          scripts/build-dmg.sh intel
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oxypad-macos
+          path: dist/*
+          if-no-files-found: error
+
+  windows:
+    name: Windows ${{ matrix.name }}
+    needs: version
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: x64, target: x86_64-pc-windows-msvc }
+          # Cross-compiled on x64 with Visual Studio's ARM64 tools.
+          - { name: arm64, target: aarch64-pc-windows-msvc }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: windows-${{ matrix.name }}
+
+      - name: Build
+        run: cargo build --release -p oxypad --target ${{ matrix.target }}
+
+      - name: Package
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          $name = "OxyPad-$env:VERSION-windows-${{ matrix.name }}"
+          $folder = "dist/$name/OxyPad"
+          New-Item -ItemType Directory -Force $folder | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/oxypad.exe" "$folder/OxyPad.exe"
+          Copy-Item LICENSE "$folder/LICENSE.txt"
+          Compress-Archive -Path $folder -DestinationPath "dist/$name.zip"
+          $hash = (Get-FileHash "dist/$name.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $name.zip" | Out-File -Encoding ascii -NoNewline "dist/$name.zip.sha256"
+          Remove-Item -Recurse "dist/$name"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oxypad-windows-${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+
+  language-pack:
+    name: Language pack
+    needs: version
+    uses: ./.github/workflows/language-pack.yml
+
+  publish:
+    name: Publish release
+    needs: [version, macos, windows, language-pack]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      HAS_SIGNING: ${{ secrets.DEVELOPER_ID_CERTIFICATE_P12 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Write release notes
+        run: |
+          # The CHANGELOG section for this version, without its heading.
+          awk -v version="$VERSION" '
+            $0 ~ "^## \\[" version "\\]" { found = 1; next }
+            found && /^## \[/ { exit }
+            found && /^\[[^]]*\]: / { next }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          {
+            echo
+            echo "### Download"
+            echo
+            echo "| Computer | Download |"
+            echo "|---|---|"
+            echo "| Mac with Apple silicon (M1 or later) | **OxyPad-$VERSION-macos-apple-silicon.dmg** |"
+            echo "| Mac with an Intel processor | **OxyPad-$VERSION-macos-intel.dmg** |"
+            echo "| Windows (most PCs) | **OxyPad-$VERSION-windows-x64.zip** |"
+            echo "| Windows on ARM (Snapdragon, …) | **OxyPad-$VERSION-windows-arm64.zip** |"
+            echo
+            echo "**macOS:** open the DMG and drag OxyPad to Applications. Apple menu ▸ About This Mac"
+            echo "shows *Chip* (Apple silicon) or *Processor* (Intel). Requires macOS 11 or later."
+            if [[ "$HAS_SIGNING" != "true" ]]; then
+              echo
+              echo "This build is not notarized by Apple yet. The first time, macOS will refuse to open it:"
+              echo "open **System Settings ▸ Privacy & Security** and click **Open Anyway** next to OxyPad,"
+              # shellcheck disable=SC2016 # literal backticks for Markdown
+              echo 'or run `xattr -dr com.apple.quarantine /Applications/OxyPad.app` in Terminal.'
+            fi
+            echo
+            echo "**Windows:** unzip and run OxyPad.exe; no installation needed. Windows SmartScreen may"
+            echo "warn the first time, as the app is not signed: choose **More info ▸ Run anyway**."
+            echo
+            echo "**Language pack:** Kotlin, C#, Scala, Swift, Ruby, Elixir, Zig and PHP highlighting comes"
+            echo "in \`oxypad-languages-$VERSION-<platform>.zip\` (macOS: the universal one). Copy its folders"
+            echo "into the folder shown in OxyPad's Settings ▸ Code Languages and choose Reload Languages."
+          } >> notes.md
+          ls -l dist
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "OxyPad $VERSION" \
+            --notes-file notes.md \
+            --verify-tag
