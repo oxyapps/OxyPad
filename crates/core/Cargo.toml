@@ -1,0 +1,15 @@
+[package]
+name = "oxypad-core"
+description = "Document model for OxyPad: encodings, line endings, atomic saves, language detection, file comparison."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+chardetng.workspace = true
+encoding_rs.workspace = true
+similar.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

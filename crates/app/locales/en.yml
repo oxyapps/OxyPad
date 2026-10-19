@@ -1,0 +1,213 @@
+# OxyPad's user interface text in English, the reference for translations.
+# See TRANSLATING.md. Placeholders such as %{name} are filled in by OxyPad:
+# keep them, in whatever position suits the sentence.
+_version: 1
+
+menu:
+  about: About OxyPad
+  settings: Settings…
+  quit: Quit OxyPad
+  file: File
+  new: New
+  open: Open…
+  follow_log: Follow Log (tail -f)…
+  save: Save
+  save_as: Save As…
+  close_tab: Close Tab
+  edit: Edit
+  undo: Undo
+  redo: Redo
+  cut: Cut
+  copy: Copy
+  paste: Paste
+  select_all: Select All
+  find: Find…
+  replace: Replace…
+  view: View
+  word_wrap: Word Wrap
+  follow_file: Follow File as Log (tail)
+  next_difference: Next Difference
+  previous_difference: Previous Difference
+  refresh_comparison: Refresh Comparison
+  next_tab: Next Tab
+  previous_tab: Previous Tab
+
+toolbar:
+  new: New
+  open: Open
+  save: Save
+  save_as: Save As
+  undo: Undo
+  redo: Redo
+  find: Find
+  replace: Replace
+  word_wrap: Word wrap
+  tail: Tail
+  tail_on: "Tail is on: click to stop following and edit"
+  tail_off: "Tail is off: click to follow this file live (read-only)"
+  compare: Compare
+  compare_tooltip: Compare with another tab
+  compare_with: Compare the current tab with
+  previous_difference: Previous difference
+  next_difference: Next difference
+  compare_again: Compare again
+  settings: Settings
+
+tabs:
+  # Name of a new document that was never saved; Notepad++ style.
+  untitled: new %{number}
+  new_tab: New tab
+
+status:
+  untitled: Untitled
+  position: Ln %{line}, Col %{column}
+  wrap: Wrap
+  tail_following: "Tail: following"
+  tail_paused: "Tail: paused while scrolled up"
+  tail_truncated: "Tail: following (file was truncated)"
+  tail_rotated: "Tail: following (file was rotated)"
+  tail_error: "Tail: error, %{error}"
+  lines: "%{count} lines"
+  read_only: Read-only
+
+dialog:
+  open: Open
+  follow: Follow
+  save: Save
+  save_as: Save As…
+  dont_save: Don't Save
+  cancel: Cancel
+  close: Close
+  save_changes: Save changes to “%{name}”?
+  save_changes_detail: Your changes will be lost if you don't save them.
+  quit_one: Quit and discard the unsaved changes in 1 tab?
+  quit_many: Quit and discard the unsaved changes in %{count} tabs?
+  quit_detail: Remembering open tabs is turned off in Settings, so these changes will be lost.
+  quit_without_saving: Quit Without Saving
+  changed: “%{name}” was changed by another program.
+  changed_detail: Reload it from disk to see the changes, or follow it as a read-only log?
+  changed_detail_unsaved: Reload it from disk, or follow it as a read-only log? Your unsaved changes in OxyPad will be lost.
+  reload: Reload
+  follow_as_log: Follow as Log
+  keep_version: Keep This Version
+  deleted: “%{name}” no longer exists on disk.
+  deleted_detail: It was deleted or moved by another program. Save it again to keep it, or close it.
+  keep_open: Keep Open
+  close_without_saving: Close Without Saving
+
+notification:
+  could_not_follow: "Could not follow %{path}: %{error}"
+  save_before_following: Save the file before following it.
+  compared_tab_closed: One of the compared tabs was closed.
+  no_highlighting: No syntax highlighting for %{name}
+  in_language_pack: It's in the additional language pack.
+  show_code_languages: Show Code Languages
+
+about:
+  version: Version %{version}
+  tagline: A fast, native, cross-platform text editor.
+  open_source: Free and open source software,
+  license: released under the Apache License 2.0.
+
+compare:
+  identical: The files are identical
+  identical_sentence: The files are identical.
+  position: Difference %{current} of %{total}
+  count: "%{count} differences"
+  summary: "%{position} · %{changed} changed, %{removed} only on the left, %{added} only on the right"
+
+settings:
+  window_title: OxyPad Settings
+  open_folder: Open Folder
+  unavailable: Unavailable
+
+  general: General
+  language: Language
+  language_system: Match System
+  session: Session
+  remember_tabs: Remember open tabs and unsaved changes
+  remember_tabs_detail: Reopen every tab, with its unsaved text, the next time OxyPad starts.
+  session_footer: Unsaved changes are backed up every 2 seconds. When this is off, OxyPad asks before discarding unsaved changes on quit.
+
+  editor: Editor
+  font: Font
+  font_size: Size
+  font_automatic: Automatic
+  font_footer: Automatic uses the theme's monospace font.
+  indentation: Indentation
+  tab_width: Tab width
+  insert_spaces: Insert spaces instead of tabs
+  display: Display
+  line_numbers: Show line numbers
+  indent_guides: Show indentation guides
+  wrap_lines: Wrap lines in new tabs
+
+  appearance: Appearance
+  theme: Theme
+  mode: Mode
+  mode_system: Match System
+  mode_light: Light
+  mode_dark: Dark
+  color_scheme: Color scheme
+  custom_themes: Custom Themes
+  themes_folder: Themes folder
+  themes_footer: Theme files (.json) added to this folder show up in the Color scheme list right away. OxyPad's own themes are good starting points; they are in its source code, under crates/app/themes.
+
+  new_documents: New Documents
+  format: Format
+  line_endings: Line endings
+  line_endings_native: Platform default
+  line_endings_lf: LF (macOS, Linux)
+  line_endings_crlf: CRLF (Windows)
+  line_endings_cr: CR (classic Mac OS)
+  encoding: Encoding
+  utf8_bom: UTF-8 with BOM
+  format_footer: Opened files always keep their own encoding and line endings.
+
+  logs: Logs
+  tail: Tail
+  color_levels: Color log levels
+  color_levels_detail: Errors in red, warnings in yellow, debug and trace dimmed.
+  max_lines: Lines kept in memory
+  max_lines_detail: Older lines are dropped from the top.
+  initial_kib: Initial amount to load (KiB)
+  initial_kib_detail: How much of the end of an existing log is shown when following starts.
+
+  code_languages: Code Languages
+  language_pack: Additional Language Pack
+  installed: Installed
+  not_installed: Not installed
+  not_loaded: "Not loaded: %{error}"
+  download: Download
+  open_releases: Open Releases Page
+  download_detail: Get the pack for your OxyPad version and platform.
+  languages_folder: Code languages folder
+  reload: Reload
+  reload_languages: Reload Languages
+  reload_detail: Load languages copied into the folder without restarting.
+  pack_footer: Kotlin, C#, Scala, Swift, Ruby, Elixir, Zig and PHP are not built in, to keep OxyPad small. Download the language pack, copy its folders into the languages folder and choose Reload Languages.
+
+# Texts of the gpui-kit components OxyPad uses (editor context menu, find
+# bar, Settings search). Ours take precedence over gpui-kit's own, so they
+# don't depend on gpui-kit having the language. Keys are gpui-kit's.
+gpui_component:
+  Input:
+    Cut: Cut
+    Copy: Copy
+    Paste: Paste
+    Select All: Select All
+    Replace: Replace
+    Replace All: Replace All
+    Clear: Clear
+    Increment: Increment
+    Decrement: Decrement
+    Show Password: Show password
+    Hide Password: Hide password
+    Go to Definition: Go to Definition
+    Show Code Actions: Show Code Actions
+  Settings:
+    search_placeholder: Search...
+    Reset All: Reset All
+  Dialog:
+    ok: OK
+    cancel: Cancel

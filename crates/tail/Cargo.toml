@@ -1,0 +1,12 @@
+[package]
+name = "oxypad-tail"
+description = "Follows growing log files like `tail -F`, surviving truncation and rotation."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+same-file = "1"
+
+[dev-dependencies]
+tempfile.workspace = true

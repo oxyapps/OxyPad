@@ -1,0 +1,208 @@
+# Textos da interface do OxyPad em português do Brasil. Veja TRANSLATING.md.
+_version: 1
+
+menu:
+  about: Sobre o OxyPad
+  settings: Configurações…
+  quit: Encerrar OxyPad
+  file: Arquivo
+  new: Novo
+  open: Abrir…
+  follow_log: Acompanhar Log (tail -f)…
+  save: Salvar
+  save_as: Salvar Como…
+  close_tab: Fechar Aba
+  edit: Editar
+  undo: Desfazer
+  redo: Refazer
+  cut: Recortar
+  copy: Copiar
+  paste: Colar
+  select_all: Selecionar Tudo
+  find: Buscar…
+  replace: Substituir…
+  view: Visualizar
+  word_wrap: Quebra de Linha
+  follow_file: Acompanhar Arquivo como Log (tail)
+  next_difference: Próxima Diferença
+  previous_difference: Diferença Anterior
+  refresh_comparison: Atualizar Comparação
+  next_tab: Próxima Aba
+  previous_tab: Aba Anterior
+
+toolbar:
+  new: Novo
+  open: Abrir
+  save: Salvar
+  save_as: Salvar como
+  undo: Desfazer
+  redo: Refazer
+  find: Buscar
+  replace: Substituir
+  word_wrap: Quebra de linha
+  tail: Tail
+  tail_on: "Tail ligado: clique para parar de acompanhar e editar"
+  tail_off: "Tail desligado: clique para acompanhar este arquivo ao vivo (somente leitura)"
+  compare: Comparar
+  compare_tooltip: Comparar com outra aba
+  compare_with: Comparar a aba atual com
+  previous_difference: Diferença anterior
+  next_difference: Próxima diferença
+  compare_again: Comparar de novo
+  settings: Configurações
+
+tabs:
+  untitled: novo %{number}
+  new_tab: Nova aba
+
+status:
+  untitled: Sem título
+  position: Ln %{line}, Col %{column}
+  wrap: Quebra
+  tail_following: "Tail: acompanhando"
+  tail_paused: "Tail: pausado enquanto rolado para cima"
+  tail_truncated: "Tail: acompanhando (o arquivo foi truncado)"
+  tail_rotated: "Tail: acompanhando (o arquivo foi rotacionado)"
+  tail_error: "Tail: erro, %{error}"
+  lines: "%{count} linhas"
+  read_only: Somente leitura
+
+dialog:
+  open: Abrir
+  follow: Acompanhar
+  save: Salvar
+  save_as: Salvar Como…
+  dont_save: Não Salvar
+  cancel: Cancelar
+  close: Fechar
+  save_changes: Salvar as alterações em “%{name}”?
+  save_changes_detail: Suas alterações serão perdidas se você não salvá-las.
+  quit_one: Encerrar e descartar as alterações não salvas em 1 aba?
+  quit_many: Encerrar e descartar as alterações não salvas em %{count} abas?
+  quit_detail: A opção de lembrar as abas abertas está desligada nas Configurações, então essas alterações serão perdidas.
+  quit_without_saving: Encerrar sem Salvar
+  changed: “%{name}” foi alterado por outro programa.
+  changed_detail: Recarregar do disco para ver as alterações, ou acompanhar como log somente leitura?
+  changed_detail_unsaved: Recarregar do disco, ou acompanhar como log somente leitura? Suas alterações não salvas no OxyPad serão perdidas.
+  reload: Recarregar
+  follow_as_log: Acompanhar como Log
+  keep_version: Manter Esta Versão
+  deleted: “%{name}” não existe mais no disco.
+  deleted_detail: Ele foi apagado ou movido por outro programa. Salve de novo para mantê-lo, ou feche.
+  keep_open: Manter Aberto
+  close_without_saving: Fechar sem Salvar
+
+notification:
+  could_not_follow: "Não foi possível acompanhar %{path}: %{error}"
+  save_before_following: Salve o arquivo antes de acompanhá-lo.
+  compared_tab_closed: Uma das abas comparadas foi fechada.
+  no_highlighting: Sem destaque de sintaxe para %{name}
+  in_language_pack: Ela está no pacote adicional de linguagens.
+  show_code_languages: Ver Linguagens de Código
+
+about:
+  version: Versão %{version}
+  tagline: Um editor de texto rápido, nativo e multiplataforma.
+  open_source: Software livre e de código aberto,
+  license: distribuído sob a Licença Apache 2.0.
+
+compare:
+  identical: Os arquivos são idênticos
+  identical_sentence: Os arquivos são idênticos.
+  position: Diferença %{current} de %{total}
+  count: "%{count} diferenças"
+  summary: "%{position} · %{changed} alteradas, %{removed} só à esquerda, %{added} só à direita"
+
+settings:
+  window_title: Configurações do OxyPad
+  open_folder: Abrir Pasta
+  unavailable: Indisponível
+
+  general: Geral
+  language: Idioma
+  language_system: Igual ao Sistema
+  session: Sessão
+  remember_tabs: Lembrar abas abertas e alterações não salvas
+  remember_tabs_detail: Reabre todas as abas, com o texto não salvo, na próxima vez que o OxyPad iniciar.
+  session_footer: As alterações não salvas são guardadas a cada 2 segundos. Com esta opção desligada, o OxyPad pergunta antes de descartar alterações não salvas ao encerrar.
+
+  editor: Editor
+  font: Fonte
+  font_size: Tamanho
+  font_automatic: Automática
+  font_footer: Automática usa a fonte monoespaçada do tema.
+  indentation: Indentação
+  tab_width: Largura da tabulação
+  insert_spaces: Inserir espaços em vez de tabulações
+  display: Exibição
+  line_numbers: Mostrar números de linha
+  indent_guides: Mostrar guias de indentação
+  wrap_lines: Quebrar linhas em novas abas
+
+  appearance: Aparência
+  theme: Tema
+  mode: Modo
+  mode_system: Igual ao Sistema
+  mode_light: Claro
+  mode_dark: Escuro
+  color_scheme: Esquema de cores
+  custom_themes: Temas Personalizados
+  themes_folder: Pasta de temas
+  themes_footer: Arquivos de tema (.json) colocados nesta pasta aparecem na hora na lista de esquemas de cores. Os temas do próprio OxyPad são bons pontos de partida; eles estão no código-fonte, em crates/app/themes.
+
+  new_documents: Novos Documentos
+  format: Formato
+  line_endings: Finais de linha
+  line_endings_native: Padrão da plataforma
+  line_endings_lf: LF (macOS, Linux)
+  line_endings_crlf: CRLF (Windows)
+  line_endings_cr: CR (Mac OS clássico)
+  encoding: Codificação
+  utf8_bom: UTF-8 com BOM
+  format_footer: Arquivos abertos sempre mantêm a própria codificação e os próprios finais de linha.
+
+  logs: Logs
+  tail: Tail
+  color_levels: Colorir níveis de log
+  color_levels_detail: Erros em vermelho, avisos em amarelo, debug e trace esmaecidos.
+  max_lines: Linhas mantidas na memória
+  max_lines_detail: As linhas mais antigas são descartadas do topo.
+  initial_kib: Quantidade inicial a carregar (KiB)
+  initial_kib_detail: Quanto do final de um log existente é mostrado ao começar a acompanhar.
+
+  code_languages: Linguagens de Código
+  language_pack: Pacote Adicional de Linguagens
+  installed: Instalada
+  not_installed: Não instalada
+  not_loaded: "Não carregada: %{error}"
+  download: Download
+  open_releases: Abrir Página de Releases
+  download_detail: Baixe o pacote para a sua versão do OxyPad e a sua plataforma.
+  languages_folder: Pasta de linguagens de código
+  reload: Recarregar
+  reload_languages: Recarregar Linguagens
+  reload_detail: Carrega as linguagens copiadas para a pasta sem reiniciar.
+  pack_footer: Kotlin, C#, Scala, Swift, Ruby, Elixir, Zig e PHP não vêm embutidas, para manter o OxyPad pequeno. Baixe o pacote de linguagens, copie as pastas dele para a pasta de linguagens e escolha Recarregar Linguagens.
+
+# Textos dos componentes do gpui-kit usados pelo OxyPad.
+gpui_component:
+  Input:
+    Cut: Recortar
+    Copy: Copiar
+    Paste: Colar
+    Select All: Selecionar Tudo
+    Replace: Substituir
+    Replace All: Substituir Tudo
+    Clear: Limpar
+    Increment: Aumentar
+    Decrement: Diminuir
+    Show Password: Mostrar senha
+    Hide Password: Ocultar senha
+    Go to Definition: Ir para a Definição
+    Show Code Actions: Mostrar Ações de Código
+  Settings:
+    search_placeholder: Buscar...
+    Reset All: Redefinir Tudo
+  Dialog:
+    ok: OK
+    cancel: Cancelar

@@ -1,0 +1,16 @@
+[package]
+name = "oxypad-session"
+description = "Persists open tabs and unsaved edits so OxyPad reopens exactly as it was left."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+dirs.workspace = true
+oxypad-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

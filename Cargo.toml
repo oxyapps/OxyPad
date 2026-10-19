@@ -1,0 +1,30 @@
+[workspace]
+resolver = "3"
+members = ["crates/core", "crates/tail", "crates/session", "crates/app", "crates/language-pack"]
+# The language pack tool compiles extra grammars; build it only on request
+# (`cargo run -p oxypad-language-pack`).
+default-members = ["crates/core", "crates/tail", "crates/session", "crates/app"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[workspace.dependencies]
+oxypad-core = { path = "crates/core" }
+oxypad-tail = { path = "crates/tail" }
+oxypad-session = { path = "crates/session" }
+
+anyhow = "1"
+chardetng = "0.1"
+dirs = "6"
+encoding_rs = "0.8"
+similar = "3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tempfile = "3"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
