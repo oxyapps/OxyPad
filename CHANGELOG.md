@@ -7,6 +7,8 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-20
+
 ### Added
 
 - A native text editor for macOS and Windows, written in Rust with GPUI: tabs, syntax
@@ -77,4 +79,5 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Settings ▸ General ▸ Troubleshooting or with `oxypad --log`: what OxyPad does and how
   long each step takes, such as saving the session and quitting.
 
-[Unreleased]: https://github.com/oxyapps/OxyPad/commits/main
+[Unreleased]: https://github.com/oxyapps/OxyPad/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/oxyapps/OxyPad/releases/tag/v0.1.0
