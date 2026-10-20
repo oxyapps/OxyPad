@@ -180,3 +180,14 @@ fn unknown_languages_have_no_highlighter() {
     assert!(Highlighter::new("plaintext").is_none());
     assert!(Highlighter::new("klingon").is_none());
 }
+
+#[test]
+fn highlights_yaml() {
+    let code = "# build\njobs:\n  build:\n    runs-on: ubuntu-latest\n    retries: 3\n    cache: true\n    base: &base x\n";
+    let runs = names("yaml", code);
+    assert!(has(&runs, "comment", "# build"), "{runs:?}");
+    assert!(has(&runs, "tag", "runs-on"), "{runs:?}");
+    assert!(has(&runs, "string", "ubuntu-latest"), "{runs:?}");
+    assert!(has(&runs, "number", "3"), "{runs:?}");
+    assert!(has(&runs, "boolean", "true"), "{runs:?}");
+}

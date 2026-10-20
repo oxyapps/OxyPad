@@ -141,6 +141,12 @@ const VARIABLE: Option<&str> = Some("variable");
 const CONSTANT: Option<&str> = Some("constant");
 const PROPERTY: Option<&str> = Some("property");
 const TAG: Option<&str> = Some("tag");
+const BOOLEAN: Option<&str> = Some("boolean");
+const VARIABLE_SPECIAL: Option<&str> = Some("variable.special");
+/// Keys in data and configuration files (JSON, YAML, TOML, INI). Not
+/// "property": several themes, the default ones too, draw it nearly in the
+/// text color, and these files are mostly keys.
+const KEY: Option<&str> = TAG;
 const ATTRIBUTE: Option<&str> = Some("attribute");
 const LABEL: Option<&str> = Some("label");
 const TITLE: Option<&str> = Some("title");
@@ -335,7 +341,7 @@ fn json(style: u8) -> Option<&'static str> {
     match style {
         1 => NUMBER,
         2 | 3 | 9 | 10 => STRING,
-        4 => PROPERTY,
+        4 => KEY,
         5 => ESCAPE,
         6 | 7 => COMMENT,
         8 => OPERATOR,
@@ -351,7 +357,7 @@ fn toml(style: u8) -> Option<&'static str> {
         3 => KEYWORD,
         4 => NUMBER,
         5 => TYPE,
-        6 => PROPERTY,
+        6 => KEY,
         8 => OPERATOR,
         9..=12 | 15 => STRING,
         13 => ESCAPE,
@@ -360,16 +366,16 @@ fn toml(style: u8) -> Option<&'static str> {
     }
 }
 
-/// SCE_YAML_*.
+/// SCE_YAML_*. Plain values are strings, as YAML reads them.
 fn yaml(style: u8) -> Option<&'static str> {
     match style {
+        0 | 7 => STRING,
         1 => COMMENT,
-        2 => PROPERTY,
-        3 => KEYWORD,
+        2 => KEY,
+        3 => BOOLEAN,
         4 => NUMBER,
-        5 => VARIABLE,
+        5 => VARIABLE_SPECIAL,
         6 => PREPROC,
-        7 => STRING,
         9 => OPERATOR,
         _ => None,
     }
@@ -454,7 +460,7 @@ fn props(style: u8) -> Option<&'static str> {
         2 => TYPE,
         3 => OPERATOR,
         4 => CONSTANT,
-        5 => PROPERTY,
+        5 => KEY,
         _ => None,
     }
 }
