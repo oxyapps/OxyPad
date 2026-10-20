@@ -85,6 +85,8 @@ tab_menu:
   move_to_start: Mover para o Início
   move_to_end: Mover para o Fim
   move_to_new_window: Mover para Nova Janela
+  move_to_window: Mover para Janela
+  new_window: Nova Janela
   print: Imprimir…
 
 print:
@@ -128,6 +130,9 @@ dialog:
   reload: Recarregar
   follow_as_log: Acompanhar como Log
   keep_version: Manter Esta Versão
+  overwrite: “%{name}” foi alterado por outro programa depois que você escolheu manter a sua versão.
+  overwrite_detail: Salvar substitui essas alterações pela sua versão. Para manter as duas, salve a sua como um arquivo novo.
+  overwrite_button: Sobrescrever
   deleted: “%{name}” não existe mais no disco.
   deleted_detail: Ele foi apagado ou movido por outro programa. Salve de novo para mantê-lo, ou feche.
   keep_open: Manter Aberto

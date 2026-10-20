@@ -20,7 +20,7 @@ use gpui_kit::{
 use oxypad_session::TabColor;
 
 use super::{TabView, Workspace};
-use crate::editor_tab::EditorTab;
+use crate::{editor_tab::EditorTab, windows};
 
 /// What the workspace keeps about a tab besides its content.
 #[derive(Clone, Copy, Default)]
@@ -383,6 +383,7 @@ fn tab_menu(
     // Comparisons stay with the tabs they compare, and a window keeps its last tab.
     let movable = !matches!(tab, TabView::Compare(_));
     let alone = this.tabs.len() < 2;
+    let others = windows::others(workspace.entity_id(), cx);
 
     // A click handler that runs `f` on the workspace for this tab.
     let run = |f: fn(&mut Workspace, u64, &mut Window, &mut Context<Workspace>)| {
@@ -479,13 +480,32 @@ fn tab_menu(
         .when(printable, |menu| {
             menu.item(PopupMenuItem::new(t!("tab_menu.print")).icon(Lucide::Printer).on_click(run(Workspace::print_tab)))
         })
-        .when(movable, |menu| {
+        .when(movable && others.is_empty(), |menu| {
             menu.item(
                 PopupMenuItem::new(t!("tab_menu.move_to_new_window"))
                     .icon(Lucide::AppWindow)
                     .disabled(alone)
                     .on_click(run(Workspace::move_to_new_window)),
             )
+        })
+        .when(movable && !others.is_empty(), |menu| {
+            let new_window = run(Workspace::move_to_new_window);
+            let workspace = workspace.clone();
+            menu.submenu_with_icon(Some(Lucide::AppWindow.into()), t!("tab_menu.move_to_window"), window, cx, {
+                move |mut menu, _, _| {
+                    menu = menu
+                        .item(PopupMenuItem::new(t!("tab_menu.new_window")).disabled(alone).on_click(new_window.clone()))
+                        .separator();
+                    for (handle, target, title) in others.iter().cloned() {
+                        let workspace = workspace.clone();
+                        menu = menu.item(PopupMenuItem::new(title).on_click(move |_, window, cx| {
+                            let target = (handle, target.clone());
+                            let _ = workspace.update(cx, |this, cx| this.move_to_window(id, target, window, cx));
+                        }));
+                    }
+                    menu
+                }
+            })
         })
         .item(
             PopupMenuItem::new(t!("tab_menu.move_to_start"))

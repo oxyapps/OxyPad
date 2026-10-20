@@ -1,7 +1,7 @@
 use std::{
     fs::{self, File},
     io::Write,
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use anyhow::{Context, Result};
@@ -42,8 +42,52 @@ pub fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
     result
 }
 
+/// The absolute path of `path` with links resolved, written the way people
+/// and other programs know it: on Windows without the `\\?\` prefix that
+/// `std::fs::canonicalize` adds, which File Explorer does not understand.
+/// `path` itself when it cannot be resolved (e.g. it does not exist).
+pub fn canonical_path(path: &Path) -> PathBuf {
+    match fs::canonicalize(path) {
+        Ok(resolved) => simplified(&resolved),
+        Err(_) => simplified(path),
+    }
+}
+
+/// `path` without a Windows `\\?\` prefix, where the plain form means the
+/// same file: `\\?\C:\dir` becomes `C:\dir`, `\\?\UNC\server\share`
+/// becomes `\\server\share`.
+pub fn simplified(path: &Path) -> PathBuf {
+    let Some(text) = path.to_str() else { return path.to_path_buf() };
+    match strip_verbatim(text) {
+        Some(plain) => PathBuf::from(plain),
+        None => path.to_path_buf(),
+    }
+}
+
+fn strip_verbatim(path: &str) -> Option<String> {
+    if let Some(rest) = path.strip_prefix(r"\\?\UNC\") {
+        return Some(format!(r"\\{rest}"));
+    }
+    let rest = path.strip_prefix(r"\\?\")?;
+    let bytes = rest.as_bytes();
+    // A drive path; others (volume GUIDs) have no plain form. Over 259
+    // characters the plain form would hit the old MAX_PATH limit.
+    let drive = bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && bytes[2] == b'\\';
+    (drive && rest.len() < 260).then(|| rest.to_owned())
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn verbatim_prefixes_are_removed() {
+        use super::strip_verbatim;
+        assert_eq!(strip_verbatim(r"\\?\C:\temp\a.txt").as_deref(), Some(r"C:\temp\a.txt"));
+        assert_eq!(strip_verbatim(r"\\?\UNC\server\share\a.txt").as_deref(), Some(r"\\server\share\a.txt"));
+        assert_eq!(strip_verbatim(r"\\?\Volume{1234}\a.txt"), None);
+        assert_eq!(strip_verbatim(r"C:\temp\a.txt"), None);
+        assert_eq!(strip_verbatim("/tmp/a.txt"), None);
+    }
+
     use super::*;
 
     #[test]

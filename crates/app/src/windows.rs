@@ -3,8 +3,8 @@
 //! Each window has its own [`Workspace`] and tabs, and the session holds
 //! them all, so every window comes back on the next launch. Closing a
 //! window closes only it; closing the last one quits, like Notepad++.
-//! Tab ids and the numbers of untitled tabs ("new 3") are unique across
-//! windows, since unsaved text is backed up by tab id.
+//! Tab ids are unique across windows, since unsaved text is backed up by
+//! tab id, and so are the numbers of untitled tabs ("new 3").
 
 use std::{
     sync::{Arc, Mutex},
@@ -36,7 +36,6 @@ pub struct Windows {
     /// Something in a window changed since the session was last written.
     changed: bool,
     next_tab_id: u64,
-    next_untitled: usize,
     /// The user agreed to quit without saving; quitting must not ask again.
     quit_confirmed: bool,
 }
@@ -51,7 +50,6 @@ pub fn init(launch: Vec<LaunchItem>, cx: &mut App) {
         store: None,
         changed: false,
         next_tab_id: 1,
-        next_untitled: 1,
         quit_confirmed: false,
     };
     let mut session = Session::default();
@@ -70,9 +68,6 @@ pub fn init(launch: Vec<LaunchItem>, cx: &mut App) {
     }
     for tab in session.tabs() {
         windows.next_tab_id = windows.next_tab_id.max(tab.id + 1);
-        if let Some(number) = tab.title.strip_prefix("new ").and_then(|number| number.parse::<usize>().ok()) {
-            windows.next_untitled = windows.next_untitled.max(number + 1);
-        }
     }
     cx.set_global(windows);
 
@@ -208,12 +203,28 @@ pub fn next_tab_id(cx: &mut App) -> u64 {
     id
 }
 
-/// The number of the next untitled tab, unique across windows.
-pub fn next_untitled(cx: &mut App) -> usize {
-    let windows = cx.global_mut::<Windows>();
-    let number = windows.next_untitled;
-    windows.next_untitled += 1;
-    number
+/// The other windows a tab can move to, each with its front tab's title,
+/// in the order they were opened.
+pub fn others(except: EntityId, cx: &App) -> Vec<(AnyWindowHandle, WeakEntity<Workspace>, SharedString)> {
+    cx.global::<Windows>()
+        .open
+        .iter()
+        .filter_map(|window| {
+            let workspace = window.workspace.upgrade().filter(|workspace| workspace.entity_id() != except)?;
+            let title = workspace.read(cx).active_title(cx);
+            Some((window.handle, window.workspace.clone(), title))
+        })
+        .collect()
+}
+
+/// The numbers of the untitled tabs ("new N") in every window but the
+/// one of `except`, which is being updated and counts its own.
+pub fn untitled_numbers_elsewhere(except: EntityId, cx: &App) -> Vec<usize> {
+    workspaces(cx)
+        .iter()
+        .filter(|workspace| workspace.entity_id() != except)
+        .flat_map(|workspace| workspace.read(cx).untitled_numbers(cx))
+        .collect()
 }
 
 fn workspaces(cx: &App) -> Vec<Entity<Workspace>> {

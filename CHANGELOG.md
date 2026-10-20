@@ -27,8 +27,9 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   colors, move it to the start or end, and save it when it has unsaved changes. Pinned
   tabs, colors and read-only tabs are kept in the session. Tabs can be dragged to a
   new place in the bar.
-- Several windows: File ▸ New Window (Mod-Shift-N), and Move to New Window in a tab's
-  menu, which takes the tab with its unsaved text. The session restores every window.
+- Several windows: File ▸ New Window (Mod-Shift-N), and Move to Window in a tab's
+  menu, to a new window or one already open, which takes the tab with its unsaved text
+  (moving a window's last tab closes that window). The session restores every window.
   Closing a window closes only it, asking first when its unsaved changes would be
   lost; closing the last one quits.
 - Printing (File ▸ Print…, Mod-P, or a tab's menu), with syntax colors: the system's
@@ -41,7 +42,11 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Side-by-side comparison of two open tabs, with changed lines and words highlighted,
   synchronized scrolling, a draggable divider and F7 to jump between differences.
 - When a file is changed by another program, OxyPad offers to reload it, follow it as a
-  log, keep your version or close it; when it is deleted, to save it again.
+  log, keep your version or close it; when it is deleted, to save it again. After you
+  keep your version it stops asking, and saving asks before overwriting the other
+  program's changes (or saves yours as a new file).
+- New untitled tabs take the lowest free number, like Notepad++: after closing "new 3",
+  the next one is "new 3" again.
 - Settings for the editor font, indentation, display, new documents and logs.
 - About 40 color schemes, one remembered for light mode and one for dark mode, plus
   your own theme files.

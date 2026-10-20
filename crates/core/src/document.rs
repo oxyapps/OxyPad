@@ -187,6 +187,10 @@ pub struct Document {
     line_ending: LineEnding,
     /// The file as last read or written; `None` before that.
     stamp: Option<DiskStamp>,
+    /// The user chose to keep this version over one another program wrote:
+    /// later changes to the file are not reported, and saving overwrites
+    /// them (the editor asks first).
+    kept_over_disk: bool,
 }
 
 impl Document {
@@ -198,7 +202,13 @@ impl Document {
     /// A new, unsaved UTF-8 document with the given line ending, starting
     /// with a byte order mark when `utf8_bom` is set.
     pub fn untitled_with(line_ending: LineEnding, utf8_bom: bool) -> Self {
-        Self { path: None, encoding: TextEncoding { encoding: UTF_8, bom: utf8_bom }, line_ending, stamp: None }
+        Self {
+            path: None,
+            encoding: TextEncoding { encoding: UTF_8, bom: utf8_bom },
+            line_ending,
+            stamp: None,
+            kept_over_disk: false,
+        }
     }
 
     /// Reads `path` and returns the document with its text normalized to `\n`.
@@ -219,7 +229,7 @@ impl Document {
         let raw = encoding.decode(bytes);
         let line_ending = LineEnding::detect(&raw);
         let text = normalize_line_endings(&raw);
-        (Self { path: None, encoding, line_ending, stamp: None }, text)
+        (Self { path: None, encoding, line_ending, stamp: None, kept_over_disk: false }, text)
     }
 
     /// Encodes `text` (with `\n` line breaks) the way this document is stored.
@@ -236,6 +246,7 @@ impl Document {
         let path = self.path.clone().context("the document has no file path yet")?;
         write_atomic(&path, &self.encode(text))?;
         self.stamp = DiskStamp::read(&path).ok();
+        self.kept_over_disk = false;
         Ok(())
     }
 
@@ -244,6 +255,7 @@ impl Document {
         write_atomic(path, &self.encode(text))?;
         self.path = Some(path.to_path_buf());
         self.stamp = DiskStamp::read(path).ok();
+        self.kept_over_disk = false;
         Ok(())
     }
 
@@ -261,6 +273,9 @@ impl Document {
     /// document last read or wrote it. Nothing is reported for documents
     /// whose file was not on disk then (new, or restored after it vanished).
     pub fn external_change(&self) -> Option<ExternalChange> {
+        if self.kept_over_disk {
+            return None;
+        }
         let path = self.path.as_deref()?;
         let known = self.stamp?;
         match DiskStamp::read(path) {
@@ -276,6 +291,18 @@ impl Document {
     /// this stops reporting until the document is saved again.
     pub fn accept_disk_version(&mut self) {
         self.stamp = self.path.as_deref().and_then(|path| DiskStamp::read(path).ok());
+    }
+
+    /// Keeps this version over the one another program wrote to the file:
+    /// further changes to it are not reported until the document is saved.
+    pub fn keep_over_disk(&mut self) {
+        self.kept_over_disk = true;
+    }
+
+    /// Whether saving would overwrite changes another program made, which
+    /// the user chose to keep this version over.
+    pub fn overwrites_disk_changes(&self) -> bool {
+        self.kept_over_disk && self.path.as_deref().is_some_and(Path::exists)
     }
 
     pub fn encoding(&self) -> TextEncoding {
@@ -381,5 +408,26 @@ mod tests {
         assert_eq!(document.external_change(), Some(ExternalChange::Deleted));
         document.accept_disk_version();
         assert_eq!(document.external_change(), None);
+    }
+
+    #[test]
+    fn a_kept_version_stops_reports_until_saved() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("app.log");
+        std::fs::write(&path, "one\n").unwrap();
+        let (mut document, _) = Document::open(&path).unwrap();
+
+        std::fs::write(&path, "one\ntwo\n").unwrap();
+        document.keep_over_disk();
+        assert_eq!(document.external_change(), None);
+        assert!(document.overwrites_disk_changes());
+        // A file that keeps growing is not asked about again.
+        std::fs::write(&path, "one\ntwo\nthree\n").unwrap();
+        assert_eq!(document.external_change(), None);
+
+        document.save("mine\n").unwrap();
+        assert!(!document.overwrites_disk_changes());
+        std::fs::write(&path, "theirs\n").unwrap();
+        assert_eq!(document.external_change(), Some(ExternalChange::Modified));
     }
 }

@@ -89,6 +89,8 @@ tab_menu:
   move_to_start: Move to Start
   move_to_end: Move to End
   move_to_new_window: Move to New Window
+  move_to_window: Move to Window
+  new_window: New Window
   print: Print…
 
 # Linux: printing goes to the default printer, without a dialog.
@@ -136,6 +138,9 @@ dialog:
   deleted: “%{name}” no longer exists on disk.
   deleted_detail: It was deleted or moved by another program. Save it again to keep it, or close it.
   keep_open: Keep Open
+  overwrite: “%{name}” was changed by another program after you chose to keep your version.
+  overwrite_detail: Saving replaces those changes with your version. To keep both, save yours as a new file.
+  overwrite_button: Overwrite
   close_without_saving: Close Without Saving
 
 notification:

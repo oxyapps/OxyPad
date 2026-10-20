@@ -78,6 +78,10 @@ pub struct TabSnapshot {
     /// Edit tabs: the text cannot be changed until this is turned off.
     #[serde(default, skip_serializing_if = "is_false")]
     pub read_only: bool,
+    /// Edit tabs: the user kept this text over changes another program made
+    /// to the file, so saving asks before overwriting them.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub kept_over_disk: bool,
     /// Text not yet saved to `path` (or the whole text of an untitled tab).
     /// Stored in `backups/<id>.txt`, never inside `session.json`.
     #[serde(skip)]

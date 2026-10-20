@@ -9,7 +9,7 @@ Notepad++ and MacPad++. Prototype stage.
 - Tab menu (right click): close, pin, rename, read-only, show in Finder/Explorer,
   copy the folder, name or full path, six tab colors, move to start/end, save;
   drag tabs to reorder them
-- Several windows (Mod-Shift-N, or Move to New Window from a tab's menu), all
+- Several windows (Mod-Shift-N, or Move to Window from a tab's menu), all
   restored by the session
 - Printing with syntax colors (Mod-P), through the system's print dialog
 - Side-by-side comparison of two open tabs: 50/50 columns with a draggable

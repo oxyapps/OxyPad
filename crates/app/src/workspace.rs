@@ -216,7 +216,9 @@ impl Workspace {
 
     /// Opens the tabs of a saved window (or of a tab moved from another window).
     fn restore(&mut self, content: WindowSession, window: &mut Window, cx: &mut Context<Self>) {
-        for snapshot in content.tabs {
+        for mut snapshot in content.tabs {
+            // Sessions from before paths were simplified on Windows.
+            snapshot.path = snapshot.path.as_deref().map(oxypad_core::simplified);
             let (id, meta) = (snapshot.id, TabMeta { pinned: snapshot.pinned, color: snapshot.color });
             let tab = match snapshot.kind {
                 TabKind::Edit => self.restore_editor(snapshot, window, cx),
@@ -242,7 +244,12 @@ impl Workspace {
     ) -> Option<TabView> {
         let (document, disk_text) = match &snapshot.path {
             Some(path) => match Document::open(path) {
-                Ok(opened) => opened,
+                Ok((mut document, text)) => {
+                    if snapshot.kept_over_disk {
+                        document.keep_over_disk();
+                    }
+                    (document, text)
+                }
                 // The file is gone but we still have its unsaved text: keep
                 // the tab so nothing is lost; saving recreates the file.
                 Err(_) if snapshot.unsaved_text.is_some() => {
@@ -288,9 +295,27 @@ impl Workspace {
         windows::next_tab_id(cx)
     }
 
+    /// Like Notepad++, the lowest number no untitled tab uses, in any window:
+    /// closing "new 3" makes the next new tab "new 3" again.
+    fn next_untitled(&self, cx: &mut Context<Self>) -> usize {
+        let mut taken = self.untitled_numbers(cx);
+        taken.extend(windows::untitled_numbers_elsewhere(cx.entity_id(), cx));
+        (1..).find(|number| !taken.contains(number)).unwrap_or(1)
+    }
+
+    pub fn untitled_numbers(&self, cx: &App) -> Vec<usize> {
+        self.tabs
+            .iter()
+            .filter_map(|tab| match tab {
+                TabView::Editor(tab) => tab.read(cx).untitled_number(),
+                _ => None,
+            })
+            .collect()
+    }
+
     fn new_untitled(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let id = self.take_id(cx);
-        let title: SharedString = format!("new {}", windows::next_untitled(cx)).into();
+        let title: SharedString = format!("new {}", self.next_untitled(cx)).into();
         let format = preferences::get(cx);
         let document = Document::untitled_with(format.new_line_ending.resolve(), format.new_utf8_bom);
         let tab = cx.new(|cx| EditorTab::new(id, title, document, String::new(), false, window, cx));
@@ -301,7 +326,7 @@ impl Workspace {
     /// Opens `path` in an editor tab, or as a followed log when `follow` is
     /// set. Activates the tab instead if the file is already open.
     pub fn open_path(&mut self, path: PathBuf, follow: bool, window: &mut Window, cx: &mut Context<Self>) {
-        let path = std::fs::canonicalize(&path).unwrap_or(path);
+        let path = oxypad_core::canonical_path(&path);
         if let Some(ix) = self.tabs.iter().position(|tab| tab.is_open_at(&path, follow, cx)) {
             self.activate(ix, window, cx);
             return;
@@ -458,7 +483,7 @@ impl Workspace {
                     (ExternalChange::Deleted, answer) => {
                         // Stop asking about the missing file whatever happens
                         // next; the tab keeps its text as unsaved changes.
-                        tab.update(cx, |tab, cx| tab.keep_version(cx));
+                        tab.update(cx, |tab, cx| tab.keep_deleted(cx));
                         match answer {
                             Some(0) => this.save_tab(tab, false, false, window, cx),
                             Some(1) => this.save_tab(tab, true, false, window, cx),
@@ -545,8 +570,38 @@ impl Workspace {
 
     /// Saves the editor tab `tab`; asks for a path when it is untitled or
     /// `save_as` is set. Closes the tab afterwards when `close` is set.
+    /// Asks before saving over a file another program changed after the
+    /// user chose to keep their version: overwrite it, save elsewhere, or not
+    /// save (which also keeps the tab open).
+    fn confirm_overwrite(&mut self, tab: Entity<EditorTab>, close: bool, window: &mut Window, cx: &mut Context<Self>) {
+        let message = t!("dialog.overwrite", name = tab.read(cx).title()).to_string();
+        let buttons = [
+            PromptButton::new(t!("dialog.overwrite_button")),
+            PromptButton::new(t!("dialog.save_as")),
+            PromptButton::cancel(t!("dialog.cancel")),
+        ];
+        let answer = window.prompt(PromptLevel::Warning, &message, Some(&t!("dialog.overwrite_detail")), &buttons, cx);
+        cx.spawn_in(window, async move |this, cx| {
+            let answer = answer.await.ok();
+            let _ = this.update_in(cx, |this, window, cx| match answer {
+                Some(0) => match tab.update(cx, |tab, cx| tab.save(cx)) {
+                    Ok(()) if close => this.remove_tab(tab.read(cx).id(), window, cx),
+                    Ok(()) => this.mark_changed(cx),
+                    Err(err) => show_notification(window, cx, Notification::error(format!("{err:#}"))),
+                },
+                Some(1) => this.save_tab(tab, true, close, window, cx),
+                _ => {}
+            });
+        })
+        .detach();
+    }
+
     fn save_tab(&mut self, tab: Entity<EditorTab>, save_as: bool, close: bool, window: &mut Window, cx: &mut Context<Self>) {
         let id = tab.read(cx).id();
+        if !save_as && tab.read(cx).overwrites_disk_changes() {
+            self.confirm_overwrite(tab, close, window, cx);
+            return;
+        }
         if !save_as && tab.read(cx).path().is_some() {
             match tab.update(cx, |tab, cx| tab.save(cx)) {
                 Ok(()) if close => self.remove_tab(id, window, cx),
@@ -683,6 +738,11 @@ impl Workspace {
 
     // ---- session ----------------------------------------------------------
 
+    /// The title of the tab in front, naming the window in menus.
+    pub fn active_title(&self, cx: &App) -> SharedString {
+        self.tabs.get(self.active).map(|tab| tab.title(cx)).unwrap_or_default()
+    }
+
     /// This window's tabs, for the session.
     pub fn window_session(&self, cx: &App) -> WindowSession {
         WindowSession {
@@ -711,15 +771,62 @@ impl Workspace {
         if self.tabs.len() < 2 {
             return;
         }
-        let Some(snapshot) = self.tabs.iter().find(|tab| tab.id(cx) == id).and_then(|tab| tab.snapshot(cx)) else {
-            return;
-        };
-        let mut snapshot = snapshot;
-        let meta = self.meta(id);
-        (snapshot.pinned, snapshot.color) = (meta.pinned, meta.color);
-        self.remove_tab(id, window, cx);
+        let Some(snapshot) = self.take_for_move(id, window, cx) else { return };
         let near = window.bounds();
         cx.defer(move |cx| windows::open(WindowSession { tabs: vec![snapshot], active: 0 }, Vec::new(), Some(near), cx));
+    }
+
+    /// Moves tab `id` to the window of `target`, like `move_to_new_window`.
+    /// Moving a window's last tab closes the window.
+    pub fn move_to_window(
+        &mut self,
+        id: u64,
+        target: (AnyWindowHandle, WeakEntity<Workspace>),
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let last = self.tabs.len() < 2;
+        let snapshot = if last { self.snapshot_for_move(id, cx) } else { self.take_for_move(id, window, cx) };
+        let Some(snapshot) = snapshot else { return };
+        let this_window = window.window_handle();
+        cx.defer(move |cx| {
+            let (handle, workspace) = target;
+            let moved = handle.update(cx, |_, window, cx| {
+                workspace.update(cx, |workspace, cx| workspace.adopt(snapshot, window, cx)).is_ok()
+            });
+            if last && matches!(moved, Ok(true)) {
+                // Nothing is lost: the tab lives on in the other window.
+                let _ = this_window.update(cx, |_, window, _| window.remove_window());
+            }
+        });
+    }
+
+    /// The snapshot of tab `id` with its pin and color.
+    fn snapshot_for_move(&self, id: u64, cx: &App) -> Option<TabSnapshot> {
+        let mut snapshot = self.tabs.iter().find(|tab| tab.id(cx) == id)?.snapshot(cx)?;
+        let meta = self.meta(id);
+        (snapshot.pinned, snapshot.color) = (meta.pinned, meta.color);
+        Some(snapshot)
+    }
+
+    fn take_for_move(&mut self, id: u64, window: &mut Window, cx: &mut Context<Self>) -> Option<TabSnapshot> {
+        let snapshot = self.snapshot_for_move(id, cx)?;
+        self.remove_tab(id, window, cx);
+        Some(snapshot)
+    }
+
+    /// Opens a tab moved here from another window, and shows it.
+    fn adopt(&mut self, snapshot: TabSnapshot, window: &mut Window, cx: &mut Context<Self>) {
+        let id = snapshot.id;
+        let count = self.tabs.len();
+        self.restore(WindowSession { tabs: vec![snapshot], active: 0 }, window, cx);
+        if self.tabs.len() == count {
+            return;
+        }
+        if let Some(ix) = self.tabs.iter().position(|tab| tab.id(cx) == id) {
+            self.activate(ix, window, cx);
+        }
+        window.activate_window();
     }
 
     // ---- actions ----------------------------------------------------------

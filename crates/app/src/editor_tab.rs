@@ -118,6 +118,14 @@ impl EditorTab {
         self.document.path().is_none()
     }
 
+    /// N for an untitled tab named "new N".
+    pub fn untitled_number(&self) -> Option<usize> {
+        if !self.is_untitled() {
+            return None;
+        }
+        self.untitled_name.strip_prefix("new ")?.parse().ok()
+    }
+
     /// Renames an untitled tab; tabs with a file are renamed by Save As.
     pub fn rename(&mut self, name: SharedString, cx: &mut Context<Self>) {
         if self.is_untitled() {
@@ -234,13 +242,26 @@ impl EditorTab {
         Ok(())
     }
 
-    /// Keeps the text in the editor over the version on disk. It now
-    /// differs from the file, so the tab counts as modified and saving
-    /// overwrites the other program's changes.
+    /// Keeps the text in the editor over the version another program wrote.
+    /// It differs from the file, so the tab counts as modified; OxyPad stops
+    /// asking about the file, and saving asks before overwriting it.
     pub fn keep_version(&mut self, cx: &mut Context<Self>) {
+        self.document.keep_over_disk();
+        self.dirty = true;
+        cx.notify();
+    }
+
+    /// Keeps the tab of a file that was deleted, as unsaved text; saving
+    /// recreates the file.
+    pub fn keep_deleted(&mut self, cx: &mut Context<Self>) {
         self.document.accept_disk_version();
         self.dirty = true;
         cx.notify();
+    }
+
+    /// Whether saving would overwrite another program's changes (see `keep_version`).
+    pub fn overwrites_disk_changes(&self) -> bool {
+        self.document.overwrites_disk_changes()
     }
 
     /// Forgets the unsaved changes without touching the text, for a tab
@@ -269,6 +290,7 @@ impl EditorTab {
             cursor: (cursor.line, cursor.character),
             follow: false,
             read_only: self.read_only,
+            kept_over_disk: self.document.overwrites_disk_changes(),
             unsaved_text: (self.dirty || self.document.path().is_none()).then(|| self.text(cx)),
             // Pinning and the color belong to the workspace, which fills them in.
             ..Default::default()

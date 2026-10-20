@@ -10,5 +10,5 @@ mod language;
 
 pub use compare::{Alignment, Cell, Row, RowKind, align, lines};
 pub use document::{Document, ExternalChange, LineEnding, TextEncoding};
-pub use fs::write_atomic;
+pub use fs::{canonical_path, simplified, write_atomic};
 pub use language::language_for_path;
