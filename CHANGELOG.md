@@ -15,7 +15,8 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Sessions like Notepad++: open tabs and unsaved changes survive quitting and crashes.
 - Tail mode: any saved file can be followed live and read-only, like `tail -F`. It
   survives truncation and log rotation, colors error and warning lines, and pauses
-  while you scroll up.
+  while you scroll up. It never keeps the program writing the log from writing,
+  including Windows PowerShell's `Add-Content`.
 - Side-by-side comparison of two open tabs, with changed lines and words highlighted,
   synchronized scrolling, a draggable divider and F7 to jump between differences.
 - When a file is changed by another program, OxyPad offers to reload it, follow it as a

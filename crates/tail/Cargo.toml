@@ -5,8 +5,8 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
-[dependencies]
-same-file = "1"
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem"] }
 
 [dev-dependencies]
 tempfile.workspace = true
