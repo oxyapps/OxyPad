@@ -213,8 +213,9 @@ mod platform {
     }
 
     unsafe fn print_pages(job: &PrintJob, hdc: HDC) {
-        let (dpi_x, dpi_y) = unsafe { (GetDeviceCaps(hdc, LOGPIXELSX), GetDeviceCaps(hdc, LOGPIXELSY)) };
-        let (page_width, page_height) = unsafe { (GetDeviceCaps(hdc, HORZRES), GetDeviceCaps(hdc, VERTRES)) };
+        let caps = |index: u32| unsafe { GetDeviceCaps(hdc, index as i32) };
+        let (dpi_x, dpi_y) = (caps(LOGPIXELSX), caps(LOGPIXELSY));
+        let (page_width, page_height) = (caps(HORZRES), caps(VERTRES));
         // Half an inch inside the printable area.
         let (margin_x, margin_y) = (dpi_x / 2, dpi_y / 2);
 
