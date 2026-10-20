@@ -103,8 +103,10 @@ To release:
 | ---- | --- |
 | `OxyPad-<version>-macos-apple-silicon.dmg` | Macs with M-series chips |
 | `OxyPad-<version>-macos-intel.dmg` | Intel Macs |
-| `OxyPad-<version>-windows-x64.msi` / `.zip` | Windows on x64: installer / portable |
-| `OxyPad-<version>-windows-arm64.msi` / `.zip` | Windows on ARM: installer / portable |
+| `OxyPad-<version>-windows-x64.msi` | Windows on x64, installer |
+| `OxyPad-<version>-windows-x64-portable.zip` | Windows on x64, no installation |
+| `OxyPad-<version>-windows-arm64.msi` | Windows on ARM, installer |
+| `OxyPad-<version>-windows-arm64-portable.zip` | Windows on ARM, no installation |
 | `oxypad-code-languages-<version>-<platform>.zip` | the code language pack |
 
 Running the workflow by hand from the Actions tab builds the same files

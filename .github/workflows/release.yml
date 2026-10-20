@@ -130,7 +130,7 @@ jobs:
         env:
           VERSION: ${{ needs.version.outputs.version }}
         run: |
-          $name = "OxyPad-$env:VERSION-windows-${{ matrix.name }}"
+          $name = "OxyPad-$env:VERSION-windows-${{ matrix.name }}-portable"
           $folder = "dist/$name/OxyPad"
           New-Item -ItemType Directory -Force $folder | Out-Null
           Copy-Item "target/${{ matrix.target }}/release/oxypad.exe" "$folder/OxyPad.exe"
@@ -163,10 +163,16 @@ jobs:
           $hash = (Get-FileHash "dist/$name" -Algorithm SHA256).Hash.ToLower()
           "$hash  $name" | Out-File -Encoding ascii -NoNewline "dist/$name.sha256"
 
+      # Two downloads: the installer and the portable zip.
       - uses: actions/upload-artifact@v4
         with:
-          name: oxypad-windows-${{ matrix.name }}
-          path: dist/*
+          name: oxypad-windows-${{ matrix.name }}-installer
+          path: dist/*.msi*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oxypad-windows-${{ matrix.name }}-portable
+          path: dist/*-portable.zip*
           if-no-files-found: error
 
   language-pack:
@@ -206,8 +212,8 @@ jobs:
             echo "|---|---|"
             echo "| Mac with Apple silicon (M1 or later) | **OxyPad-$VERSION-macos-apple-silicon.dmg** |"
             echo "| Mac with an Intel processor | **OxyPad-$VERSION-macos-intel.dmg** |"
-            echo "| Windows (most PCs) | **OxyPad-$VERSION-windows-x64.msi** (installer) or **.zip** (portable) |"
-            echo "| Windows on ARM (Snapdragon, …) | **OxyPad-$VERSION-windows-arm64.msi** (installer) or **.zip** (portable) |"
+            echo "| Windows (most PCs) | **OxyPad-$VERSION-windows-x64.msi** (installer) or **OxyPad-$VERSION-windows-x64-portable.zip** |"
+            echo "| Windows on ARM (Snapdragon, …) | **OxyPad-$VERSION-windows-arm64.msi** (installer) or **OxyPad-$VERSION-windows-arm64-portable.zip** |"
             echo
             echo "**macOS:** open the DMG and drag OxyPad to Applications. Apple menu ▸ About This Mac"
             echo "shows *Chip* (Apple silicon) or *Processor* (Intel). Requires macOS 11 or later."
@@ -220,7 +226,7 @@ jobs:
             fi
             echo
             echo "**Windows:** the MSI installs OxyPad for all users, with a Start menu shortcut and an"
-            echo "entry under *Open with* for text and code files. The zip needs no installation: unzip it"
+            echo "entry under *Open with* for text and code files. The portable zip needs no installation: unzip it"
             echo "and run OxyPad.exe. Windows SmartScreen may warn the first time, as OxyPad is not signed"
             echo "yet: choose **More info ▸ Run anyway**."
             echo
