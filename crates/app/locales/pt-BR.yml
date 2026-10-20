@@ -12,6 +12,7 @@ menu:
   follow_log: Acompanhar Log (tail -f)…
   save: Salvar
   save_as: Salvar Como…
+  print: Imprimir…
   close_tab: Fechar Aba
   edit: Editar
   undo: Desfazer
@@ -84,6 +85,12 @@ tab_menu:
   move_to_start: Mover para o Início
   move_to_end: Mover para o Fim
   move_to_new_window: Mover para Nova Janela
+  print: Imprimir…
+
+print:
+  confirm: Imprimir “%{name}”?
+  confirm_detail: Será enviado para a impressora padrão.
+  print: Imprimir
 
 status:
   untitled: Sem título

@@ -10,6 +10,7 @@ use std::{
 use gpui_kit::{
     component::{
         ActiveTheme, IconName, Sizable, TitleBar, WindowExt,
+        highlighter::HighlightTheme,
         button::{Button, ButtonVariants},
         h_flex,
         link::Link,
@@ -31,7 +32,7 @@ use crate::{
     editor_tab::EditorTab,
     log_tab::{LogStatus, LogTab},
     preferences::{self, AppPreferences},
-    windows,
+    print, syntax, windows,
 };
 
 mod tab_bar;
@@ -770,6 +771,26 @@ impl Workspace {
         }
     }
 
+    fn on_print(&mut self, _: &Print, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(id) = self.tabs.get(self.active).map(|tab| tab.id(cx)) {
+            self.print_tab(id, window, cx);
+        }
+    }
+
+    /// Prints the text of tab `id` with the system's print dialog. Comparisons are not printed.
+    fn print_tab(&mut self, id: u64, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(tab) = self.tabs.iter().find(|tab| tab.id(cx) == id) else { return };
+        let Some(source) = tab.compare_source(cx) else { return };
+        let colors = syntax::highlight_with(&source.text, &source.language, &HighlightTheme::default_light())
+            .into_iter()
+            .filter_map(|(range, style)| Some((range, style.color?.to_rgb())))
+            .collect();
+        let job = print::PrintJob { title: source.title.to_string(), text: source.text, colors };
+        if let Err(err) = print::print(job, window, cx) {
+            show_notification(window, cx, Notification::error(format!("{err:#}")));
+        }
+    }
+
     fn on_close_tab(&mut self, _: &CloseTab, window: &mut Window, cx: &mut Context<Self>) {
         self.close_tab_at(self.active, window, cx);
     }
@@ -983,6 +1004,7 @@ impl Render for Workspace {
             .on_action(cx.listener(Self::on_open_log))
             .on_action(cx.listener(Self::on_save))
             .on_action(cx.listener(Self::on_save_as))
+            .on_action(cx.listener(Self::on_print))
             .on_action(cx.listener(Self::on_close_tab))
             .on_action(cx.listener(Self::on_next_tab))
             .on_action(cx.listener(Self::on_previous_tab))

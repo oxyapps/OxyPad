@@ -9,7 +9,7 @@ gpui_kit::assets::icon_assets!(
     [
         FilePlus, Save, SavePen, TextWrap, ScrollText, Columns2, // toolbar
         Pin, PinOff, Lock, X, PenLine, FolderOpen, ClipboardCopy, Palette, Circle, // tab menu
-        ArrowLeftToLine, ArrowRightToLine, AppWindow,
+        ArrowLeftToLine, ArrowRightToLine, AppWindow, Printer,
     ]
 );
 

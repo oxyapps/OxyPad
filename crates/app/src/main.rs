@@ -17,6 +17,7 @@ mod i18n;
 mod log_tab;
 mod menus;
 mod preferences;
+mod print;
 mod syntax;
 mod themes;
 mod windows;

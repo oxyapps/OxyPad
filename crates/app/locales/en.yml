@@ -14,6 +14,7 @@ menu:
   follow_log: Follow Log (tail -f)…
   save: Save
   save_as: Save As…
+  print: Print…
   close_tab: Close Tab
   edit: Edit
   undo: Undo
@@ -88,6 +89,13 @@ tab_menu:
   move_to_start: Move to Start
   move_to_end: Move to End
   move_to_new_window: Move to New Window
+  print: Print…
+
+# Linux: printing goes to the default printer, without a dialog.
+print:
+  confirm: Print “%{name}”?
+  confirm_detail: It will be sent to the default printer.
+  print: Print
 
 status:
   untitled: Untitled

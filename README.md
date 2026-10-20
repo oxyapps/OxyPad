@@ -11,6 +11,7 @@ Notepad++ and MacPad++. Prototype stage.
   drag tabs to reorder them
 - Several windows (Mod-Shift-N, or Move to New Window from a tab's menu), all
   restored by the session
+- Printing with syntax colors (Mod-P), through the system's print dialog
 - Side-by-side comparison of two open tabs: 50/50 columns with a draggable
   divider (double-click resets it), both columns scroll together, each scrolls
   sideways on its own, changed lines and words are highlighted, F7 jumps
@@ -139,6 +140,7 @@ every change to them, without building.
 | Mod-Shift-N     | New window                 |
 | Mod-Shift-O     | Follow a log               |
 | Mod-S / Mod-Shift-S | Save / Save As         |
+| Mod-P           | Print                      |
 | Mod-W           | Close tab                  |
 | Ctrl-Tab        | Next tab                   |
 | Alt-Z           | Word wrap                  |

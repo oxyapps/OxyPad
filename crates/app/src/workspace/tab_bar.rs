@@ -424,6 +424,7 @@ fn tab_menu(
             );
     }
 
+    let printable = !matches!(tab, TabView::Compare(_));
     if path.is_some() {
         menu = menu
             .separator()
@@ -475,6 +476,9 @@ fn tab_menu(
     });
 
     menu.separator()
+        .when(printable, |menu| {
+            menu.item(PopupMenuItem::new(t!("tab_menu.print")).icon(Lucide::Printer).on_click(run(Workspace::print_tab)))
+        })
         .when(movable, |menu| {
             menu.item(
                 PopupMenuItem::new(t!("tab_menu.move_to_new_window"))

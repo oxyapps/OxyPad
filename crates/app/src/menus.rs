@@ -40,6 +40,8 @@ fn build() -> Vec<Menu> {
             MenuItem::action(t!("menu.save"), Save),
             MenuItem::action(t!("menu.save_as"), SaveAs),
             MenuItem::separator(),
+            MenuItem::action(t!("menu.print"), Print),
+            MenuItem::separator(),
             MenuItem::action(t!("menu.close_tab"), CloseTab),
         ]),
         Menu::new(t!("menu.edit")).items([

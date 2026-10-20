@@ -6,6 +6,7 @@ use std::{cell::RefCell, ops::Range, path::Path, rc::Rc};
 use gpui_kit::{
     component::{
         ActiveTheme,
+        highlighter::HighlightTheme,
         input::{EditorState, FoldRange, HighlightStyleResolver, InputEdit, InputHighlighter, InputHighlighterFactory, Rope},
     },
     *,
@@ -160,11 +161,15 @@ impl InputHighlighter for EditorHighlighter {
 /// Highlights `text` whole, for views other than the editor. Returns the
 /// style runs of the highlighted parts, in order.
 pub fn highlight(text: &str, language: &str, cx: &App) -> Vec<(Range<usize>, HighlightStyle)> {
+    highlight_with(text, language, &cx.theme().highlight_theme)
+}
+
+/// [`highlight`] with the colors of `theme` (printing uses the light one).
+pub fn highlight_with(text: &str, language: &str, theme: &HighlightTheme) -> Vec<(Range<usize>, HighlightStyle)> {
     let Some(mut highlighter) = Highlighter::new(language) else { return Vec::new() };
     let source = oxypad_syntax::StrText::new(text);
     highlighter.reset(&source);
     highlighter.lex_to(&source, text.len());
-    let theme = &cx.theme().highlight_theme;
     highlighter
         .styles(&source, 0..text.len())
         .into_iter()

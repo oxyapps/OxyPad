@@ -20,6 +20,8 @@ oxypad-core.workspace = true
 oxypad-session.workspace = true
 oxypad-syntax.workspace = true
 oxypad-tail.workspace = true
+# The window's native handle, for the print dialogs (src/print.rs).
+raw-window-handle = "0.6"
 # The editor's text type, at the version gpui-kit uses, for its line index.
 ropey = { version = "=2.0.0-beta.1", default-features = false, features = ["metric_lines_lf"] }
 # The same i18n runtime as gpui-kit, so one locale switch covers both.
@@ -27,3 +29,32 @@ rust-i18n = "4.2"
 serde.workspace = true
 serde_json.workspace = true
 sys-locale = "0.3"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# AppKit's print panel. Already in the build through GPUI, at these versions.
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSAttributedString", "NSRange", "NSGeometry"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+    "std",
+    "objc2-core-foundation",
+    "NSAttributedString",
+    "NSColor",
+    "NSFont",
+    "NSPrintInfo",
+    "NSPrintOperation",
+    "NSResponder",
+    "NSText",
+    "NSTextStorage",
+    "NSTextView",
+    "NSView",
+    "NSWindow",
+] }
+
+[target.'cfg(windows)'.dependencies]
+# The Print dialog and GDI printing. Already in the build, at this version.
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_Storage_Xps",
+    "Win32_UI_Controls_Dialogs",
+] }
