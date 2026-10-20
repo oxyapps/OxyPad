@@ -3,7 +3,7 @@ use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     rc::Rc,
-    sync::{Arc, Mutex},
+    sync::Arc,
     time::Duration,
 };
 
@@ -23,7 +23,7 @@ use gpui_kit::{
 };
 use oxypad_core::{Document, ExternalChange, language_for_path};
 use oxypad_tail::ResetReason;
-use oxypad_session::{Session, SessionStore, TabKind, TabSnapshot, ThemePreference};
+use oxypad_session::{TabKind, TabSnapshot, ThemePreference, WindowSession};
 
 use crate::{
     actions::*,
@@ -31,6 +31,7 @@ use crate::{
     editor_tab::EditorTab,
     log_tab::{LogStatus, LogTab},
     preferences::{self, AppPreferences},
+    windows,
 };
 
 mod tab_bar;
@@ -38,7 +39,8 @@ mod toolbar;
 
 use tab_bar::TabMeta;
 
-const AUTOSAVE_INTERVAL: Duration = Duration::from_secs(2);
+/// How often the window looks for files changed by other programs while it is in front.
+const EXTERNAL_CHANGE_INTERVAL: Duration = Duration::from_secs(2);
 
 const REPOSITORY_URL: &str = "https://github.com/oxyapps/OxyPad";
 const WEBSITE_URL: &str = "https://oxyapps.org";
@@ -130,79 +132,45 @@ impl TabView {
     }
 }
 
-/// The main window and its workspace, so app-level actions (Quit from the
-/// Settings window, say) can reach it.
-pub struct MainWorkspace {
-    pub window: AnyWindowHandle,
-    pub workspace: WeakEntity<Workspace>,
-}
-
-impl Global for MainWorkspace {}
-
 pub struct Workspace {
     tabs: Vec<TabView>,
     /// Pinning and color of each tab, by id.
     meta: HashMap<u64, TabMeta>,
     active: usize,
-    next_id: u64,
-    next_untitled: usize,
-    store: Option<Arc<Mutex<SessionStore>>>,
-    session_changed: bool,
     app_menu_bar: Entity<AppMenuBar>,
     focus_handle: FocusHandle,
     window_title: SharedString,
-    /// The user agreed to quit without saving; closing must not ask again.
-    quit_confirmed: bool,
+    /// The user agreed to close this window and lose its unsaved changes.
+    close_confirmed: bool,
     /// A file-changed-on-disk question is on screen.
     asking_external_change: bool,
     /// The tab last right-clicked, for the tab context menu.
     context_tab: Rc<Cell<Option<u64>>>,
     /// Enter in the rename dialog's field.
     rename_subscription: Option<Subscription>,
-    _autosave: Task<()>,
+    _external_changes: Task<()>,
     _subscriptions: Vec<Subscription>,
 }
 
 impl Workspace {
-    pub fn new(
-        launch: Vec<LaunchItem>,
-        app_menu_bar: Entity<AppMenuBar>,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> Self {
+    /// A window showing the tabs of `content`, then the files in `launch`.
+    pub fn new(content: WindowSession, launch: Vec<LaunchItem>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let mut this = Self {
             tabs: Vec::new(),
             meta: HashMap::new(),
             active: 0,
-            next_id: 1,
-            next_untitled: 1,
-            store: None,
-            session_changed: false,
-            app_menu_bar,
+            app_menu_bar: AppMenuBar::new(cx),
             focus_handle: cx.focus_handle(),
             window_title: SharedString::default(),
-            quit_confirmed: false,
+            close_confirmed: false,
             asking_external_change: false,
             context_tab: Rc::default(),
             rename_subscription: None,
-            _autosave: Task::ready(()),
+            _external_changes: Task::ready(()),
             _subscriptions: Vec::new(),
         };
 
-        match SessionStore::default_location() {
-            Ok(mut store) => {
-                if preferences::get(cx).restore_session {
-                    match store.load() {
-                        Ok(Some(session)) => this.restore(session, window, cx),
-                        Ok(None) => {}
-                        Err(err) => eprintln!("oxypad: could not restore the session: {err:#}"),
-                    }
-                }
-                this.store = Some(Arc::new(Mutex::new(store)));
-            }
-            Err(err) => eprintln!("oxypad: sessions are disabled: {err:#}"),
-        }
-
+        this.restore(content, window, cx);
         for item in launch {
             this.open_path(item.path, item.follow, window, cx);
         }
@@ -210,13 +178,10 @@ impl Workspace {
             this.new_untitled(window, cx);
         }
 
-        this._autosave = cx.spawn_in(window, async move |this, cx| {
+        this._external_changes = cx.spawn_in(window, async move |this, cx| {
             loop {
-                cx.background_executor().timer(AUTOSAVE_INTERVAL).await;
-                let tick = this.update_in(cx, |this, window, cx| {
-                    this.autosave(cx);
-                    this.check_external_changes(window, cx);
-                });
+                cx.background_executor().timer(EXTERNAL_CHANGE_INTERVAL).await;
+                let tick = this.update_in(cx, |this, window, cx| this.check_external_changes(window, cx));
                 if tick.is_err() {
                     break;
                 }
@@ -227,13 +192,6 @@ impl Workspace {
         // in front).
         this._subscriptions.push(cx.observe_window_activation(window, |this, window, cx| {
             this.check_external_changes(window, cx);
-        }));
-        // With the session on, quitting never asks to save: unsaved text is
-        // kept. Closing the window drops this view before the app quits, so
-        // save on both.
-        this._subscriptions.push(cx.on_app_quit(|this, cx| {
-            this.save_session_now(cx);
-            async {}
         }));
         let weak = cx.entity().downgrade();
         window.on_window_should_close(cx, move |window, cx| {
@@ -255,12 +213,9 @@ impl Workspace {
 
     // ---- tabs -----------------------------------------------------------
 
-    fn restore(&mut self, session: Session, window: &mut Window, cx: &mut Context<Self>) {
-        for snapshot in session.tabs {
-            self.next_id = self.next_id.max(snapshot.id + 1);
-            if let Some(number) = snapshot.title.strip_prefix("new ").and_then(|n| n.parse::<usize>().ok()) {
-                self.next_untitled = self.next_untitled.max(number + 1);
-            }
+    /// Opens the tabs of a saved window (or of a tab moved from another window).
+    fn restore(&mut self, content: WindowSession, window: &mut Window, cx: &mut Context<Self>) {
+        for snapshot in content.tabs {
             let (id, meta) = (snapshot.id, TabMeta { pinned: snapshot.pinned, color: snapshot.color });
             let tab = match snapshot.kind {
                 TabKind::Edit => self.restore_editor(snapshot, window, cx),
@@ -274,7 +229,7 @@ impl Workspace {
                 self.push_tab(tab, cx);
             }
         }
-        self.active = session.active.min(self.tabs.len().saturating_sub(1));
+        self.active = content.active.min(self.tabs.len().saturating_sub(1));
         self.sort_pinned_first(cx);
     }
 
@@ -324,20 +279,17 @@ impl Workspace {
     }
 
     fn mark_changed(&mut self, cx: &mut Context<Self>) {
-        self.session_changed = true;
+        windows::mark_changed(cx);
         cx.notify();
     }
 
-    fn take_id(&mut self) -> u64 {
-        let id = self.next_id;
-        self.next_id += 1;
-        id
+    fn take_id(&mut self, cx: &mut App) -> u64 {
+        windows::next_tab_id(cx)
     }
 
     fn new_untitled(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let id = self.take_id();
-        let title: SharedString = format!("new {}", self.next_untitled).into();
-        self.next_untitled += 1;
+        let id = self.take_id(cx);
+        let title: SharedString = format!("new {}", windows::next_untitled(cx)).into();
         let format = preferences::get(cx);
         let document = Document::untitled_with(format.new_line_ending.resolve(), format.new_utf8_bom);
         let tab = cx.new(|cx| EditorTab::new(id, title, document, String::new(), false, window, cx));
@@ -354,7 +306,7 @@ impl Workspace {
             return;
         }
 
-        let id = self.take_id();
+        let id = self.take_id(cx);
         let tab = if follow {
             LogTab::open(id, path.clone(), true, window, cx)
                 .map(TabView::Log)
@@ -582,7 +534,7 @@ impl Workspace {
             return;
         }
 
-        let id = self.take_id();
+        let id = self.take_id(cx);
         let compare = cx.new(|cx| CompareTab::new(id, left, right, cx));
         self.push_tab(TabView::Compare(compare), cx);
         self.activate(self.tabs.len() - 1, window, cx);
@@ -683,81 +635,56 @@ impl Workspace {
         self.mark_changed(cx);
     }
 
-    /// Unsaved changes would be lost on quit: the session is off and some
-    /// tab is modified.
-    fn needs_quit_confirmation(&self, cx: &App) -> bool {
-        !self.quit_confirmed
-            && !preferences::get(cx).restore_session
-            && self.tabs.iter().any(|tab| tab.is_dirty(cx))
+    /// Tabs with unsaved changes.
+    pub fn dirty_count(&self, cx: &App) -> usize {
+        self.tabs.iter().filter(|tab| tab.is_dirty(cx)).count()
     }
 
-    /// Quits, first asking about unsaved changes when they would be lost.
-    pub fn request_quit_app(cx: &mut App) {
-        let Some(main) = cx.try_global::<MainWorkspace>() else {
-            cx.quit();
-            return;
-        };
-        let workspace = main.workspace.clone();
-        let quit_now = main
-            .window
-            .update(cx, |_, window, cx| {
-                workspace.update(cx, |this, cx| this.request_quit(window, cx)).is_err()
-            })
-            .unwrap_or(true);
-        if quit_now {
-            cx.quit();
+    /// Called before this window closes. Closing the last window quits,
+    /// which may ask about changes the session would not keep; closing
+    /// another one loses its unsaved changes, so it asks first.
+    fn should_close(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        if windows::count(cx) <= 1 {
+            if windows::quit_needs_confirmation(cx) {
+                windows::request_quit(cx);
+                return false;
+            }
+            windows::save_now(cx);
+            return true;
         }
-    }
-
-    fn request_quit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.needs_quit_confirmation(cx) {
-            self.save_session_now(cx);
-            cx.quit();
-            return;
+        let dirty = self.dirty_count(cx);
+        if dirty == 0 || self.close_confirmed {
+            return true;
         }
-        let dirty = self.tabs.iter().filter(|tab| tab.is_dirty(cx)).count();
         let message = if dirty == 1 {
-            t!("dialog.quit_one").to_string()
+            t!("dialog.close_window_one").to_string()
         } else {
-            t!("dialog.quit_many", count = dirty).to_string()
+            t!("dialog.close_window_many", count = dirty).to_string()
         };
         let answer = window.prompt(
             PromptLevel::Warning,
             &message,
-            Some(&t!("dialog.quit_detail")),
-            &[PromptButton::new(t!("dialog.quit_without_saving")), PromptButton::cancel(t!("dialog.cancel"))],
+            Some(&t!("dialog.close_window_detail")),
+            &[PromptButton::new(t!("dialog.close_window")), PromptButton::cancel(t!("dialog.cancel"))],
             cx,
         );
-        cx.spawn(async move |this, cx| {
+        cx.spawn_in(window, async move |this, cx| {
             if answer.await == Ok(0) {
-                let _ = this.update(cx, |this, cx| {
-                    this.quit_confirmed = true;
-                    cx.quit();
+                let _ = this.update_in(cx, |this, window, _| {
+                    this.close_confirmed = true;
+                    window.remove_window();
                 });
             }
         })
         .detach();
-    }
-
-    /// Called before the main window closes, which quits the app.
-    fn should_close(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
-        if self.needs_quit_confirmation(cx) {
-            self.request_quit(window, cx);
-            return false;
-        }
-        self.save_session_now(cx);
-        true
+        false
     }
 
     // ---- session ----------------------------------------------------------
 
-    /// The session to save. Empty when restoring sessions is off, which
-    /// also removes the backups of an earlier session.
-    fn session(&self, cx: &App) -> Session {
-        if !preferences::get(cx).restore_session {
-            return Session::default();
-        }
-        Session {
+    /// This window's tabs, for the session.
+    pub fn window_session(&self, cx: &App) -> WindowSession {
+        WindowSession {
             tabs: self
                 .tabs
                 .iter()
@@ -777,35 +704,32 @@ impl Workspace {
         }
     }
 
-    /// Writes the session on the background executor if anything changed.
-    fn autosave(&mut self, cx: &mut Context<Self>) {
-        if !self.session_changed {
+    /// Moves tab `id` to a new window, unsaved text, cursor, pin and color
+    /// included (not its undo history). The last tab of a window stays.
+    fn move_to_new_window(&mut self, id: u64, window: &mut Window, cx: &mut Context<Self>) {
+        if self.tabs.len() < 2 {
             return;
         }
-        let Some(store) = self.store.clone() else { return };
-        self.session_changed = false;
-        let session = self.session(cx);
-        cx.background_spawn(async move {
-            if let Err(err) = store.lock().unwrap().save(&session) {
-                eprintln!("oxypad: autosave failed: {err:#}");
-            }
-        })
-        .detach();
-    }
-
-    fn save_session_now(&mut self, cx: &mut Context<Self>) {
-        let Some(store) = self.store.clone() else { return };
-        let session = self.session(cx);
-        if let Err(err) = store.lock().unwrap().save(&session) {
-            eprintln!("oxypad: saving the session failed: {err:#}");
-        }
-        self.session_changed = false;
+        let Some(snapshot) = self.tabs.iter().find(|tab| tab.id(cx) == id).and_then(|tab| tab.snapshot(cx)) else {
+            return;
+        };
+        let mut snapshot = snapshot;
+        let meta = self.meta(id);
+        (snapshot.pinned, snapshot.color) = (meta.pinned, meta.color);
+        self.remove_tab(id, window, cx);
+        let near = window.bounds();
+        cx.defer(move |cx| windows::open(WindowSession { tabs: vec![snapshot], active: 0 }, Vec::new(), Some(near), cx));
     }
 
     // ---- actions ----------------------------------------------------------
 
     fn on_new_file(&mut self, _: &NewFile, window: &mut Window, cx: &mut Context<Self>) {
         self.new_untitled(window, cx);
+    }
+
+    fn on_new_window(&mut self, _: &NewWindow, window: &mut Window, cx: &mut Context<Self>) {
+        let near = window.bounds();
+        cx.defer(move |cx| windows::open_empty(Some(near), cx));
     }
 
     fn on_open_file(&mut self, _: &OpenFile, window: &mut Window, cx: &mut Context<Self>) {
@@ -1054,6 +978,7 @@ impl Render for Workspace {
             .bg(cx.theme().background)
             .text_color(cx.theme().foreground)
             .on_action(cx.listener(Self::on_new_file))
+            .on_action(cx.listener(Self::on_new_window))
             .on_action(cx.listener(Self::on_open_file))
             .on_action(cx.listener(Self::on_open_log))
             .on_action(cx.listener(Self::on_save))

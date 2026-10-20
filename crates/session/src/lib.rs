@@ -6,7 +6,7 @@
 //!
 //! ```text
 //! oxypad/
-//!   session.json      tab list, order, cursor positions
+//!   session.json      windows and their tabs, order, cursor positions
 //!   backups/<id>.txt  unsaved text of each modified or untitled tab
 //! ```
 
@@ -27,7 +27,8 @@ pub use preferences::{LineEndingPreference, Preferences, ThemePreference};
 
 const SESSION_FILE: &str = "session.json";
 const BACKUP_DIR: &str = "backups";
-const FORMAT_VERSION: u32 = 1;
+/// 2: windows, each with its tabs. 1: one list of tabs, read as one window.
+const FORMAT_VERSION: u32 = 2;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -83,17 +84,40 @@ pub struct TabSnapshot {
     pub unsaved_text: Option<String>,
 }
 
+/// One window: its tabs, in order, and the one in front.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Session {
+pub struct WindowSession {
     pub tabs: Vec<TabSnapshot>,
     pub active: usize,
 }
 
-#[derive(Serialize, Deserialize)]
-struct SessionFile {
+/// The open windows, in the order they were opened.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Session {
+    pub windows: Vec<WindowSession>,
+}
+
+impl Session {
+    pub fn tabs(&self) -> impl Iterator<Item = &TabSnapshot> {
+        self.windows.iter().flat_map(|window| &window.tabs)
+    }
+}
+
+#[derive(Serialize)]
+struct SessionFileOut<'a> {
     version: u32,
-    #[serde(flatten)]
-    session: Session,
+    windows: &'a [WindowSession],
+}
+
+#[derive(Deserialize)]
+struct SessionFileIn {
+    #[serde(default)]
+    windows: Vec<WindowSession>,
+    // Version 1: the tabs of the only window.
+    #[serde(default)]
+    tabs: Vec<TabSnapshot>,
+    #[serde(default)]
+    active: usize,
 }
 
 /// The per-user data directory holding the session and the preferences:
@@ -138,18 +162,23 @@ impl SessionStore {
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(err) => return Err(err).with_context(|| format!("reading {}", path.display())),
         };
-        let file: SessionFile =
+        let file: SessionFileIn =
             serde_json::from_slice(&json).with_context(|| format!("parsing {}", path.display()))?;
-        let mut session = file.session;
-
-        for tab in &mut session.tabs {
-            if let Ok(text) = fs::read_to_string(self.backup_path(tab.id)) {
-                self.written.insert(tab.id, hash(&text));
-                tab.unsaved_text = Some(text);
-            }
+        let mut windows = file.windows;
+        if windows.is_empty() && !file.tabs.is_empty() {
+            windows.push(WindowSession { tabs: file.tabs, active: file.active });
         }
-        session.active = session.active.min(session.tabs.len().saturating_sub(1));
-        Ok(Some(session))
+
+        for window in &mut windows {
+            for tab in &mut window.tabs {
+                if let Ok(text) = fs::read_to_string(self.backup_path(tab.id)) {
+                    self.written.insert(tab.id, hash(&text));
+                    tab.unsaved_text = Some(text);
+                }
+            }
+            window.active = window.active.min(window.tabs.len().saturating_sub(1));
+        }
+        Ok(Some(Session { windows }))
     }
 
     /// Writes the session and the backups of tabs with unsaved text, and
@@ -160,7 +189,7 @@ impl SessionStore {
             .with_context(|| format!("creating {}", backup_dir.display()))?;
 
         let mut keep = HashSet::new();
-        for tab in &session.tabs {
+        for tab in session.tabs() {
             let Some(text) = &tab.unsaved_text else { continue };
             keep.insert(tab.id);
             let digest = hash(text);
@@ -170,7 +199,7 @@ impl SessionStore {
             }
         }
 
-        let file = SessionFile { version: FORMAT_VERSION, session: session.clone() };
+        let file = SessionFileOut { version: FORMAT_VERSION, windows: &session.windows };
         write_atomic(&self.dir.join(SESSION_FILE), &serde_json::to_vec_pretty(&file)?)?;
 
         // Only after session.json no longer refers to them.
@@ -216,6 +245,10 @@ mod tests {
         }
     }
 
+    fn one_window(tabs: Vec<TabSnapshot>, active: usize) -> Session {
+        Session { windows: vec![WindowSession { tabs, active }] }
+    }
+
     #[test]
     fn first_launch_has_no_session() {
         let dir = tempfile::tempdir().unwrap();
@@ -223,23 +256,26 @@ mod tests {
     }
 
     #[test]
-    fn round_trips_tabs_and_unsaved_text() {
+    fn round_trips_windows_tabs_and_unsaved_text() {
         let dir = tempfile::tempdir().unwrap();
+        let first = vec![
+            tab(1, Some("draft ✍️")),
+            TabSnapshot {
+                id: 2,
+                kind: TabKind::Tail,
+                path: Some("/var/log/system.log".into()),
+                follow: true,
+                pinned: true,
+                color: Some(TabColor::Cyan),
+                ..Default::default()
+            },
+            TabSnapshot { id: 3, path: Some("/etc/hosts".into()), read_only: true, ..Default::default() },
+        ];
         let session = Session {
-            tabs: vec![
-                tab(1, Some("draft ✍️")),
-                TabSnapshot {
-                    id: 2,
-                    kind: TabKind::Tail,
-                    path: Some("/var/log/system.log".into()),
-                    follow: true,
-                    pinned: true,
-                    color: Some(TabColor::Cyan),
-                    ..Default::default()
-                },
-                TabSnapshot { id: 3, path: Some("/etc/hosts".into()), read_only: true, ..Default::default() },
+            windows: vec![
+                WindowSession { tabs: first, active: 1 },
+                WindowSession { tabs: vec![tab(4, Some("second window"))], active: 0 },
             ],
-            active: 1,
         };
 
         SessionStore::at(dir.path()).save(&session).unwrap();
@@ -249,11 +285,15 @@ mod tests {
     }
 
     #[test]
-    fn reads_sessions_saved_before_pinned_tabs_and_colors() {
+    fn reads_version_1_sessions_as_one_window() {
         let dir = tempfile::tempdir().unwrap();
-        let json = r#"{"version":1,"tabs":[{"id":1,"kind":"edit","path":null,"title":"new 1","cursor":[0,0]}],"active":0}"#;
+        let json = r#"{"version":1,"tabs":[{"id":1,"kind":"edit","path":null,"title":"new 1","cursor":[0,0]},
+            {"id":2,"kind":"edit","path":null,"title":"new 2","cursor":[0,0]}],"active":1}"#;
         fs::write(dir.path().join(SESSION_FILE), json).unwrap();
-        let tab = &SessionStore::at(dir.path()).load().unwrap().unwrap().tabs[0];
+        let session = SessionStore::at(dir.path()).load().unwrap().unwrap();
+        assert_eq!(session.windows.len(), 1);
+        assert_eq!(session.windows[0].active, 1);
+        let tab = &session.windows[0].tabs[0];
         assert!(!tab.pinned && !tab.read_only && tab.color.is_none());
     }
 
@@ -261,9 +301,9 @@ mod tests {
     fn removes_backups_of_closed_or_saved_tabs() {
         let dir = tempfile::tempdir().unwrap();
         let mut store = SessionStore::at(dir.path());
-        store.save(&Session { tabs: vec![tab(1, Some("a")), tab(2, Some("b"))], active: 0 }).unwrap();
+        store.save(&one_window(vec![tab(1, Some("a")), tab(2, Some("b"))], 0)).unwrap();
 
-        store.save(&Session { tabs: vec![tab(1, None)], active: 0 }).unwrap();
+        store.save(&one_window(vec![tab(1, None)], 0)).unwrap();
 
         let backups = fs::read_dir(dir.path().join(BACKUP_DIR)).unwrap().count();
         assert_eq!(backups, 0);
@@ -273,7 +313,7 @@ mod tests {
     fn clamps_active_index() {
         let dir = tempfile::tempdir().unwrap();
         let mut store = SessionStore::at(dir.path());
-        store.save(&Session { tabs: vec![tab(1, None)], active: 5 }).unwrap();
-        assert_eq!(store.load().unwrap().unwrap().active, 0);
+        store.save(&one_window(vec![tab(1, None)], 5)).unwrap();
+        assert_eq!(store.load().unwrap().unwrap().windows[0].active, 0);
     }
 }

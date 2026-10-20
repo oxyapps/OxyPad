@@ -9,6 +9,7 @@ menu:
   quit: Quit OxyPad
   file: File
   new: New
+  new_window: New Window
   open: Open…
   follow_log: Follow Log (tail -f)…
   save: Save
@@ -86,6 +87,7 @@ tab_menu:
   magenta: Magenta
   move_to_start: Move to Start
   move_to_end: Move to End
+  move_to_new_window: Move to New Window
 
 status:
   untitled: Untitled
@@ -113,6 +115,10 @@ dialog:
   quit_many: Quit and discard the unsaved changes in %{count} tabs?
   quit_detail: Remembering open tabs is turned off in Settings, so these changes will be lost.
   quit_without_saving: Quit Without Saving
+  close_window_one: Close this window and discard the unsaved changes in 1 tab?
+  close_window_many: Close this window and discard the unsaved changes in %{count} tabs?
+  close_window_detail: The tabs of a closed window are not kept, so these changes will be lost.
+  close_window: Close Window
   changed: “%{name}” was changed by another program.
   changed_detail: Reload it from disk to see the changes, or follow it as a read-only log?
   changed_detail_unsaved: Reload it from disk, or follow it as a read-only log? Your unsaved changes in OxyPad will be lost.

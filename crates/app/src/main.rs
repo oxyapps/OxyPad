@@ -19,15 +19,14 @@ mod menus;
 mod preferences;
 mod syntax;
 mod themes;
+mod windows;
 mod workspace;
 
 use std::path::PathBuf;
 
-use gpui_kit::{component::TitleBar, *};
-
 use crate::{
     actions::{OpenSettings, Quit},
-    workspace::{LaunchItem, MainWorkspace, Workspace},
+    workspace::LaunchItem,
 };
 
 const USAGE: &str = "\
@@ -73,43 +72,11 @@ fn main() {
         i18n::init(cx);
         themes::init(cx);
         actions::bind_keys(cx);
-        let app_menu_bar = menus::install(cx);
-        // Quitting goes through the workspace, which may ask about unsaved changes.
-        cx.on_action(|_: &Quit, cx| Workspace::request_quit_app(cx));
+        menus::install(cx);
+        // Quitting may ask about unsaved changes in any window.
+        cx.on_action(|_: &Quit, cx| windows::request_quit(cx));
         cx.on_action(|_: &OpenSettings, cx| preferences::open_window(cx));
-
-        let base = if cfg!(target_os = "macos") {
-            WindowOptions {
-                titlebar: Some(TitlebarOptions { title: Some("OxyPad".into()), ..Default::default() }),
-                ..Default::default()
-            }
-        } else {
-            // Windows and Linux draw the title bar themselves to host the menu bar.
-            TitleBar::window_options()
-        };
-        let options = WindowOptions {
-            window_bounds: Some(WindowBounds::centered(size(px(1100.), px(720.)), cx)),
-            window_min_size: Some(size(px(480.), px(320.))),
-            app_id: Some("org.oxyapps.oxypad".into()),
-            ..base
-        };
-
-        let (window, workspace) = gpui_kit::open_window(options, cx, |window, cx| {
-            preferences::apply_appearance(Some(window), cx);
-            cx.new(|cx| Workspace::new(launch, app_menu_bar, window, cx))
-        })
-        .expect("failed to open the main window");
-        cx.set_global(MainWorkspace { window, workspace: workspace.downgrade() });
-
-        // One main window per app: closing it quits, like Notepad++. Other
-        // windows (Settings) close on their own.
-        let main_window = window.window_id();
-        cx.on_window_closed(move |cx, closed| {
-            if closed == main_window {
-                cx.quit();
-            }
-        })
-        .detach();
+        windows::init(launch, cx);
         cx.activate(true);
     });
 }

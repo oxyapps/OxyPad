@@ -1,22 +1,21 @@
 use gpui_kit::{
-    App, Entity, Menu, MenuItem, OsAction,
-    component::{GlobalState, input, menu::AppMenuBar},
+    App, Menu, MenuItem, OsAction,
+    component::{GlobalState, input},
 };
 
 use crate::actions::*;
 
-/// Installs the menus: the system menu bar on macOS and, through the
-/// returned [`AppMenuBar`], an in-window menu bar on Windows and Linux.
+/// Installs the menus: the system menu bar on macOS, and the menus each
+/// window's in-window `AppMenuBar` shows on Windows and Linux.
 ///
 /// Must run after the key bindings, since menus copy their shortcuts from
 /// the keymap when they are built.
-pub fn install(cx: &mut App) -> Entity<AppMenuBar> {
+pub fn install(cx: &mut App) {
     reload(cx);
-    AppMenuBar::new(cx)
 }
 
-/// Rebuilds the menus, e.g. in another language. The in-window menu bar
-/// picks them up when its [`AppMenuBar::reload`] runs.
+/// Rebuilds the menus, e.g. in another language. The in-window menu bars
+/// pick them up when their `AppMenuBar::reload` runs.
 pub fn reload(cx: &mut App) {
     cx.set_menus(build());
     let owned = build().into_iter().map(Menu::owned).collect();
@@ -34,6 +33,7 @@ fn build() -> Vec<Menu> {
         ]),
         Menu::new(t!("menu.file")).items([
             MenuItem::action(t!("menu.new"), NewFile),
+            MenuItem::action(t!("menu.new_window"), NewWindow),
             MenuItem::action(t!("menu.open"), OpenFile),
             MenuItem::action(t!("menu.follow_log"), OpenLog),
             MenuItem::separator(),

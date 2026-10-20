@@ -20,6 +20,10 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   colors, move it to the start or end, and save it when it has unsaved changes. Pinned
   tabs, colors and read-only tabs are kept in the session. Tabs can be dragged to a
   new place in the bar.
+- Several windows: File ▸ New Window (Mod-Shift-N), and Move to New Window in a tab's
+  menu, which takes the tab with its unsaved text. The session restores every window.
+  Closing a window closes only it, asking first when its unsaved changes would be
+  lost; closing the last one quits.
 - Tail mode: any saved file can be followed live and read-only, like `tail -F`. It
   survives truncation and log rotation, colors error and warning lines, and pauses
   while you scroll up. It never keeps the program writing the log from writing,

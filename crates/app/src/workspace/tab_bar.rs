@@ -380,6 +380,9 @@ fn tab_menu(
     let read_only = editor.is_some_and(EditorTab::is_read_only);
     let pins = this.pinned_count(cx);
     let (first, last) = if meta.pinned { (0, pins.saturating_sub(1)) } else { (pins, this.tabs.len() - 1) };
+    // Comparisons stay with the tabs they compare, and a window keeps its last tab.
+    let movable = !matches!(tab, TabView::Compare(_));
+    let alone = this.tabs.len() < 2;
 
     // A click handler that runs `f` on the workspace for this tab.
     let run = |f: fn(&mut Workspace, u64, &mut Window, &mut Context<Workspace>)| {
@@ -472,6 +475,14 @@ fn tab_menu(
     });
 
     menu.separator()
+        .when(movable, |menu| {
+            menu.item(
+                PopupMenuItem::new(t!("tab_menu.move_to_new_window"))
+                    .icon(Lucide::AppWindow)
+                    .disabled(alone)
+                    .on_click(run(Workspace::move_to_new_window)),
+            )
+        })
         .item(
             PopupMenuItem::new(t!("tab_menu.move_to_start"))
                 .icon(Lucide::ArrowLeftToLine)

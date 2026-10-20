@@ -7,6 +7,7 @@ menu:
   quit: Encerrar OxyPad
   file: Arquivo
   new: Novo
+  new_window: Nova Janela
   open: Abrir…
   follow_log: Acompanhar Log (tail -f)…
   save: Salvar
@@ -82,6 +83,7 @@ tab_menu:
   magenta: Magenta
   move_to_start: Mover para o Início
   move_to_end: Mover para o Fim
+  move_to_new_window: Mover para Nova Janela
 
 status:
   untitled: Sem título
@@ -109,6 +111,10 @@ dialog:
   quit_many: Encerrar e descartar as alterações não salvas em %{count} abas?
   quit_detail: A opção de lembrar as abas abertas está desligada nas Configurações, então essas alterações serão perdidas.
   quit_without_saving: Encerrar sem Salvar
+  close_window_one: Fechar esta janela e descartar as alterações não salvas de 1 aba?
+  close_window_many: Fechar esta janela e descartar as alterações não salvas de %{count} abas?
+  close_window_detail: As abas de uma janela fechada não são guardadas, então essas alterações serão perdidas.
+  close_window: Fechar Janela
   changed: “%{name}” foi alterado por outro programa.
   changed_detail: Recarregar do disco para ver as alterações, ou acompanhar como log somente leitura?
   changed_detail_unsaved: Recarregar do disco, ou acompanhar como log somente leitura? Suas alterações não salvas no OxyPad serão perdidas.

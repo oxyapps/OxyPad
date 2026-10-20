@@ -4,6 +4,7 @@ actions!(
     oxypad,
     [
         NewFile,
+        NewWindow,
         OpenFile,
         OpenLog,
         Save,
@@ -33,6 +34,7 @@ pub fn bind_keys(cx: &mut App) {
     let context = Some(WORKSPACE_CONTEXT);
     cx.bind_keys([
         KeyBinding::new("secondary-n", NewFile, context),
+        KeyBinding::new("secondary-shift-n", NewWindow, context),
         KeyBinding::new("secondary-o", OpenFile, context),
         KeyBinding::new("secondary-shift-o", OpenLog, context),
         KeyBinding::new("secondary-s", Save, context),

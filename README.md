@@ -9,6 +9,8 @@ Notepad++ and MacPad++. Prototype stage.
 - Tab menu (right click): close, pin, rename, read-only, show in Finder/Explorer,
   copy the folder, name or full path, six tab colors, move to start/end, save;
   drag tabs to reorder them
+- Several windows (Mod-Shift-N, or Move to New Window from a tab's menu), all
+  restored by the session
 - Side-by-side comparison of two open tabs: 50/50 columns with a draggable
   divider (double-click resets it), both columns scroll together, each scrolls
   sideways on its own, changed lines and words are highlighted, F7 jumps
@@ -134,6 +136,7 @@ every change to them, without building.
 | Keys            | Action                     |
 | --------------- | -------------------------- |
 | Mod-N / Mod-O   | New / Open                 |
+| Mod-Shift-N     | New window                 |
 | Mod-Shift-O     | Follow a log               |
 | Mod-S / Mod-Shift-S | Save / Save As         |
 | Mod-W           | Close tab                  |
