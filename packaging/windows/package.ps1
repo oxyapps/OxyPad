@@ -92,7 +92,7 @@ $wix = if ($wix) { $wix.Source } else { Join-Path $env:USERPROFILE '.dotnet\tool
 if (-not (Test-Path $wix)) { throw 'WiX not found: dotnet tool install --global wix --version 5.0.2' }
 $msi = Join-Path $Dist "OxyPad-$Version-windows-$Arch.msi"
 Invoke-Native 'wix build' {
-  & $wix build (Join-Path $Root 'packaging\windows\OxyPad.wxs') `
+  & $wix build (Join-Path $Root 'packaging\windows\OxyPad.wxs') (Join-Path $Root 'packaging\windows\installer-ui.wxs') `
     -arch $Arch `
     -d "Version=$MsiVersion" `
     -d "ExeFile=$Exe" `

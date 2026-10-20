@@ -15,6 +15,9 @@ embed-resource = "3"
 [dependencies]
 anyhow.workspace = true
 dirs.workspace = true
+# Files from later launches reach the app through a channel (src/instance.rs).
+# Already in the build through GPUI.
+futures = { version = "0.3", default-features = false, features = ["std"] }
 gpui-kit = "=0.8.0"
 oxypad-core.workspace = true
 oxypad-session.workspace = true
@@ -51,10 +54,17 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
 ] }
 
 [target.'cfg(windows)'.dependencies]
-# The Print dialog and GDI printing. Already in the build, at this version.
+# The Print dialog and GDI printing, and the single-instance pipe. Already in
+# the build, at this version.
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
     "Win32_Storage_Xps",
+    "Win32_System_IO",
+    "Win32_System_Pipes",
+    "Win32_System_RemoteDesktop",
     "Win32_UI_Controls_Dialogs",
+    "Win32_UI_WindowsAndMessaging",
 ] }

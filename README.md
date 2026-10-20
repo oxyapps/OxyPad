@@ -23,6 +23,8 @@ Notepad++ and MacPad++. Prototype stage.
 - Settings window (Mod-,): session, font, indentation, display, theme,
   format of new documents, log options; saved in `settings.json` next to the session
 - Sessions like Notepad++: open tabs and unsaved edits survive quitting and crashes
+- One OxyPad at a time: a file opened from File Explorer (*Open with*, *Edit with
+  OxyPad*), Finder, a file manager or the command line becomes a tab of the running one
 - Notices files changed by other programs and asks what to do: reload, follow
   as a log, keep your version or close (and save again when a file was deleted)
 - Encodings and line endings kept on save (UTF-8, UTF-8 BOM, UTF-16, legacy code pages; LF/CRLF/CR)
@@ -115,6 +117,13 @@ To release:
 | `OxyPad-<version>-windows-x64-portable.zip` | Windows on x64, no installation |
 | `OxyPad-<version>-windows-arm64.msi` | Windows on ARM, installer |
 | `OxyPad-<version>-windows-arm64-portable.zip` | Windows on ARM, no installation |
+
+The MSI asks for two options, both on by default: a desktop shortcut, and *Edit
+with OxyPad* in the right-click menu of every file. It also lists OxyPad under
+*Open with* and in *Settings ▸ Default apps* for text and code files; Windows
+leaves choosing the default app to the user. Unattended installs take
+`INSTALLDESKTOPSHORTCUT=0` and `INSTALLCONTEXTMENU=0`. On macOS, OxyPad is
+under *Open With* in Finder for every file, never the default.
 | `OxyPad-<version>-linux-<arch>.AppImage` | Linux on x86_64 or aarch64, any distribution |
 | `OxyPad-<version>-linux-<arch>.deb` / `.rpm` | Debian and Ubuntu / Fedora and openSUSE |
 | `OxyPad-<version>-linux-<arch>.tar.gz` | Linux, the files alone |

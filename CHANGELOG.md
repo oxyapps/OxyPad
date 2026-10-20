@@ -14,6 +14,13 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Notepad++), find and replace, word wrap, and files kept in their own encoding (UTF-8,
   UTF-16, legacy code pages) and line endings.
 - Sessions like Notepad++: open tabs and unsaved changes survive quitting and crashes.
+- One OxyPad at a time: opening files while it runs (from File Explorer, Finder, a file
+  manager or the command line) adds them as tabs of the front window instead of starting
+  another OxyPad with the same session.
+- Windows installer: a welcome screen offering a desktop shortcut and *Edit with OxyPad*
+  in the right-click menu of files, and OxyPad listed in *Settings ▸ Default apps* for
+  text and code files. On macOS, OxyPad is offered under *Open With* in Finder, and files
+  dropped on its Dock icon open.
 - A menu on each tab (right click): close, pin to the left of the bar, rename (untitled
   tabs get a new name, saved files are saved under one), read-only, show the file in
   Finder or File Explorer, copy its folder, name or full path, give the tab one of six

@@ -1,14 +1,21 @@
 <!--
-  The Windows installer, built with WiX Toolset v5 by the release workflow:
+  The Windows installer, built with WiX Toolset v5 by package.ps1:
 
-    wix build packaging/windows/OxyPad.wxs -arch x64 ^
+    wix build packaging/windows/OxyPad.wxs packaging/windows/installer-ui.wxs -arch x64 ^
       -d Version=0.1.0 -d ExeFile=path\to\oxypad.exe ^
       -d IconFile=oxypad-icons\oxypad.ico -d LicenseFile=LICENSE ^
       -o OxyPad.msi
 
-  It installs for all users into Program Files, adds a Start menu shortcut
-  and offers OxyPad under "Open with" for text and code files, without
-  taking over any file type. Installing a newer version replaces the old one.
+  It installs for all users into Program Files, with a Start menu shortcut,
+  and registers OxyPad for text and code files: under "Open with" and in
+  Settings > Default apps, without taking over any file type (Windows leaves
+  that choice to the user). The welcome screen (installer-ui.wxs) offers a
+  desktop shortcut and "Edit with OxyPad" in the right-click menu of every
+  file, both on by default; for unattended installs:
+
+    msiexec /i OxyPad.msi /qn INSTALLDESKTOPSHORTCUT=0 INSTALLCONTEXTMENU=0
+
+  An update keeps those choices. Installing a newer version replaces the old one.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <!-- The UpgradeCode never changes: it is how Windows recognizes OxyPad
@@ -19,9 +26,12 @@
     Version="$(Version)"
     UpgradeCode="43578B0B-7D4B-4A8A-81CD-F09B4DE7FF66"
     Scope="perMachine"
-    Compressed="yes">
+    Compressed="yes"
+    Language="1033">
 
-    <MajorUpgrade DowngradeErrorMessage="A newer version of OxyPad is already installed." />
+    <!-- Pre-releases of one version (0.2.0-rc.1, 0.2.0-rc.2) are the same
+         MSI version, and must still replace each other. -->
+    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of OxyPad is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
     <Icon Id="OxyPad.ico" SourceFile="$(IconFile)" />
@@ -30,19 +40,31 @@
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/oxyapps/OxyPad" />
     <Property Id="ARPHELPLINK" Value="https://github.com/oxyapps/OxyPad/issues" />
 
+    <!-- The welcome screen's options. On by default for a first install; an
+         update keeps each only if it is still there (the shortcut on the
+         desktop, the menu in the registry), as the user may have removed it.
+         Secure, so the choice made in the (unelevated) welcome screen reaches
+         the elevated install. A value on the command line wins. -->
+    <Property Id="INSTALLDESKTOPSHORTCUT" Secure="yes" />
+    <Property Id="EXISTINGDESKTOPSHORTCUT">
+      <DirectorySearch Id="DesktopSearch" Path="[DesktopFolder]" Depth="0">
+        <FileSearch Name="OxyPad.lnk" />
+      </DirectorySearch>
+    </Property>
+    <SetProperty Id="INSTALLDESKTOPSHORTCUT" Value="1" After="AppSearch" Sequence="first"
+      Condition="NOT INSTALLDESKTOPSHORTCUT AND (NOT WIX_UPGRADE_DETECTED OR EXISTINGDESKTOPSHORTCUT)" />
+    <Property Id="INSTALLCONTEXTMENU" Secure="yes" />
+    <Property Id="EXISTINGCONTEXTMENU">
+      <RegistrySearch Id="ContextMenuSearch" Root="HKLM" Key="SOFTWARE\Classes\*\shell\OxyPad.Edit" Type="raw" />
+    </Property>
+    <SetProperty Id="INSTALLCONTEXTMENU" Value="1" After="AppSearch" Sequence="first"
+      Condition="NOT INSTALLCONTEXTMENU AND (NOT WIX_UPGRADE_DETECTED OR EXISTINGCONTEXTMENU)" />
+    <UIRef Id="OxyPadInstallerUI" />
+
     <StandardDirectory Id="ProgramFiles6432Folder">
       <Directory Id="INSTALLFOLDER" Name="OxyPad">
         <Component Id="Executable">
-          <File Id="OxyPadExe" Name="OxyPad.exe" Source="$(ExeFile)" KeyPath="yes">
-            <Shortcut
-              Id="StartMenuShortcut"
-              Directory="ProgramMenuFolder"
-              Name="OxyPad"
-              Description="A fast, native, cross-platform text editor"
-              WorkingDirectory="INSTALLFOLDER"
-              Icon="OxyPad.ico"
-              Advertise="yes" />
-          </File>
+          <File Id="OxyPadExe" Name="OxyPad.exe" Source="$(ExeFile)" KeyPath="yes" />
         </Component>
         <Component Id="License">
           <File Id="License" Name="LICENSE.txt" Source="$(LicenseFile)" KeyPath="yes" />
@@ -51,36 +73,82 @@
         <Component Id="Registration">
           <!-- `oxypad` from Run (Win+R) and the Start menu search. -->
           <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\OxyPad.exe">
-            <RegistryValue Type="string" Value="[INSTALLFOLDER]OxyPad.exe" KeyPath="yes" />
+            <RegistryValue Type="string" Value="[#OxyPadExe]" KeyPath="yes" />
             <RegistryValue Name="Path" Type="string" Value="[INSTALLFOLDER]" />
           </RegistryKey>
 
           <!-- How Windows opens a file with OxyPad, for "Open with". -->
           <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\Applications\OxyPad.exe">
             <RegistryValue Name="FriendlyAppName" Type="string" Value="OxyPad" />
-            <RegistryValue Key="DefaultIcon" Type="string" Value="[INSTALLFOLDER]OxyPad.exe,0" />
-            <RegistryValue Key="shell\open\command" Type="string" Value="&quot;[INSTALLFOLDER]OxyPad.exe&quot; &quot;%1&quot;" />
+            <RegistryValue Key="DefaultIcon" Type="string" Value="&quot;[#OxyPadExe]&quot;,0" />
+            <RegistryValue Key="shell\open\command" Type="string" Value="&quot;[#OxyPadExe]&quot; &quot;%1&quot;" />
           </RegistryKey>
           <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\OxyPad.Document">
             <RegistryValue Type="string" Value="Text document" />
-            <RegistryValue Key="DefaultIcon" Type="string" Value="[INSTALLFOLDER]OxyPad.exe,0" />
-            <RegistryValue Key="shell\open\command" Type="string" Value="&quot;[INSTALLFOLDER]OxyPad.exe&quot; &quot;%1&quot;" />
+            <RegistryValue Key="DefaultIcon" Type="string" Value="&quot;[#OxyPadExe]&quot;,0" />
+            <RegistryValue Key="shell\open\command" Type="string" Value="&quot;[#OxyPadExe]&quot; &quot;%1&quot;" />
           </RegistryKey>
 
-          <!-- Listed under "Open with" for these types; the default program
-               stays whatever it was. -->
+          <!-- Settings > Default apps lists OxyPad, with these types, through
+               Windows' Default Programs registration. -->
+          <RegistryKey Root="HKLM" Key="SOFTWARE\OxyApps\OxyPad\Capabilities">
+            <RegistryValue Name="ApplicationName" Type="string" Value="OxyPad" />
+            <RegistryValue Name="ApplicationDescription" Type="string" Value="A fast, native, cross-platform text editor" />
+            <RegistryValue Name="ApplicationIcon" Type="string" Value="&quot;[#OxyPadExe]&quot;,0" />
+          </RegistryKey>
+          <RegistryValue Root="HKLM" Key="SOFTWARE\RegisteredApplications" Name="OxyPad" Type="string" Value="SOFTWARE\OxyApps\OxyPad\Capabilities" />
+
+          <!-- Listed under "Open with" and in Default apps for these types; the
+               default program stays whatever it was. -->
           <?foreach Extension in .txt;.log;.md;.markdown;.json;.jsonc;.xml;.yml;.yaml;.toml;.ini;.cfg;.conf;.properties;.env;.csv;.tsv;.sql;.html;.htm;.css;.scss;.js;.mjs;.cjs;.ts;.tsx;.jsx;.vue;.svelte;.py;.rb;.php;.java;.kt;.kts;.cs;.go;.rs;.c;.h;.cpp;.hpp;.cc;.swift;.lua;.sh;.bash;.zsh;.ps1;.psm1;.psd1;.bat;.cmd;.diff;.patch;.gitignore;.editorconfig;.dockerfile;.gradle;.cmake ?>
           <RegistryValue Root="HKLM" Key="SOFTWARE\Classes\$(Extension)\OpenWithProgids" Name="OxyPad.Document" Type="string" Value="" />
           <RegistryValue Root="HKLM" Key="SOFTWARE\Classes\Applications\OxyPad.exe\SupportedTypes" Name="$(Extension)" Type="string" Value="" />
+          <RegistryValue Root="HKLM" Key="SOFTWARE\OxyApps\OxyPad\Capabilities\FileAssociations" Name="$(Extension)" Type="string" Value="OxyPad.Document" />
           <?endforeach?>
         </Component>
+
+        <!-- "Edit with OxyPad" on the right-click menu of every file, whatever
+             program opens it. Several files selected (up to 15, Windows' limit
+             for this kind of entry) start one OxyPad each, which hand their
+             file to the one already running (src/instance.rs). On Windows 11
+             it is under "Show more options". -->
+        <Component Id="ContextMenu" Condition="INSTALLCONTEXTMENU = 1">
+          <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\*\shell\OxyPad.Edit">
+            <RegistryValue Type="string" Value="Edit with OxyPad" KeyPath="yes" />
+            <RegistryValue Name="Icon" Type="string" Value="&quot;[#OxyPadExe]&quot;,0" />
+            <RegistryValue Name="MultiSelectModel" Type="string" Value="Document" />
+            <RegistryValue Key="command" Type="string" Value="&quot;[#OxyPadExe]&quot; &quot;%1&quot;" />
+          </RegistryKey>
+        </Component>
       </Directory>
+    </StandardDirectory>
+
+    <!-- Plain links to OxyPad.exe, not advertised shortcuts: an advertised one
+         points at Windows Installer rather than the program, which Windows
+         cannot use to open files. Each has a registry key path, so uninstalling
+         removes it. -->
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Component Id="StartMenuShortcut">
+        <Shortcut Id="StartMenuShortcut" Name="OxyPad" Description="A fast, native, cross-platform text editor"
+          Target="[#OxyPadExe]" WorkingDirectory="INSTALLFOLDER" Icon="OxyPad.ico" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\OxyApps\OxyPad\Shortcuts" Name="StartMenu" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+    <StandardDirectory Id="DesktopFolder">
+      <Component Id="DesktopShortcut" Condition="INSTALLDESKTOPSHORTCUT = 1">
+        <Shortcut Id="DesktopShortcut" Name="OxyPad" Description="A fast, native, cross-platform text editor"
+          Target="[#OxyPadExe]" WorkingDirectory="INSTALLFOLDER" Icon="OxyPad.ico" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\OxyApps\OxyPad\Shortcuts" Name="Desktop" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
     </StandardDirectory>
 
     <Feature Id="Main">
       <ComponentRef Id="Executable" />
       <ComponentRef Id="License" />
       <ComponentRef Id="Registration" />
+      <ComponentRef Id="ContextMenu" />
+      <ComponentRef Id="StartMenuShortcut" />
+      <ComponentRef Id="DesktopShortcut" />
     </Feature>
   </Package>
 </Wix>

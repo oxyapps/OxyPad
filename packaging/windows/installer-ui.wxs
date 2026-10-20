@@ -1,0 +1,121 @@
+<!--
+  The installer's screens: plain Windows Installer dialogs, with no WiX UI
+  extension, artwork or custom actions. A full install shows a welcome screen
+  with the options of OxyPad.wxs, then progress and the outcome; installing
+  again offers repair or removal. Unattended installs (/qn, /passive) show none.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Fragment>
+    <UI Id="OxyPadInstallerUI">
+      <TextStyle Id="Normal" FaceName="Segoe UI" Size="9" />
+      <TextStyle Id="Title" FaceName="Segoe UI" Size="12" Bold="yes" />
+      <Property Id="DefaultUIFont" Value="Normal" />
+
+      <Dialog Id="Welcome" Width="370" Height="180" Title="[ProductName] Setup">
+        <Control Id="Title" Type="Text" X="20" Y="20" Width="330" Height="25" Text="{\Title}Install [ProductName] [ProductVersion]" />
+        <Control Id="Description" Type="Text" X="20" Y="50" Width="330" Height="40"
+          Text="Setup installs [ProductName] for all users, adds it to the Start menu and offers it under &quot;Open with&quot; for text and code files." />
+        <Control Id="DesktopShortcut" Type="CheckBox" X="20" Y="98" Width="330" Height="17"
+          Property="INSTALLDESKTOPSHORTCUT" CheckBoxValue="1" Text="Create a &amp;desktop shortcut" />
+        <Control Id="ContextMenu" Type="CheckBox" X="20" Y="116" Width="330" Height="17"
+          Property="INSTALLCONTEXTMENU" CheckBoxValue="1" Text="Add &quot;&amp;Edit with OxyPad&quot; to the right-click menu of files" />
+        <Control Id="Install" Type="PushButton" X="195" Y="145" Width="75" Height="23" Default="yes" ElevationShield="yes" Text="&amp;Install">
+          <Publish Event="EndDialog" Value="Return" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="280" Y="145" Width="70" Height="23" Cancel="yes" Text="Cancel">
+          <Publish Event="EndDialog" Value="Exit" />
+        </Control>
+      </Dialog>
+
+      <Dialog Id="Maintenance" Width="370" Height="180" Title="[ProductName] Setup">
+        <Control Id="Title" Type="Text" X="20" Y="20" Width="330" Height="25" Text="{\Title}[ProductName] is installed" />
+        <Control Id="Description" Type="Text" X="20" Y="55" Width="330" Height="70"
+          Text="Choose Repair to restore missing files and shortcuts, or Remove to uninstall [ProductName]." />
+        <Control Id="Repair" Type="PushButton" X="110" Y="145" Width="75" Height="23" Default="yes" ElevationShield="yes" Text="&amp;Repair">
+          <Publish Property="REINSTALL" Value="ALL" Order="1" />
+          <Publish Property="REINSTALLMODE" Value="amus" Order="2" />
+          <Publish Event="EndDialog" Value="Return" Order="3" />
+        </Control>
+        <Control Id="Remove" Type="PushButton" X="195" Y="145" Width="75" Height="23" ElevationShield="yes" Text="R&amp;emove">
+          <Publish Property="REMOVE" Value="ALL" Order="1" />
+          <Publish Event="EndDialog" Value="Return" Order="2" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="280" Y="145" Width="70" Height="23" Cancel="yes" Text="Cancel">
+          <Publish Event="EndDialog" Value="Exit" />
+        </Control>
+      </Dialog>
+
+      <Dialog Id="Progress" Width="370" Height="180" Title="[ProductName] Setup" Modeless="yes">
+        <Control Id="Title" Type="Text" X="20" Y="20" Width="330" Height="25" Text="{\Title}Setting up [ProductName]" />
+        <Control Id="Status" Type="Text" X="20" Y="60" Width="330" Height="40" Text="Please wait while setup completes." />
+        <Control Id="Bar" Type="ProgressBar" X="20" Y="110" Width="330" Height="15" ProgressBlocks="yes">
+          <Subscribe Event="SetProgress" Attribute="Progress" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="280" Y="145" Width="70" Height="23" Cancel="yes" Text="Cancel">
+          <Publish Event="SpawnDialog" Value="ConfirmCancel" />
+        </Control>
+      </Dialog>
+
+      <Dialog Id="ConfirmCancel" Width="300" Height="110" Title="[ProductName] Setup">
+        <Control Id="Description" Type="Text" X="20" Y="20" Width="260" Height="35" Text="Cancel [ProductName] setup?" />
+        <Control Id="Yes" Type="PushButton" X="130" Y="70" Width="70" Height="23" Text="&amp;Yes">
+          <Publish Event="EndDialog" Value="Exit" />
+        </Control>
+        <Control Id="No" Type="PushButton" X="210" Y="70" Width="70" Height="23" Default="yes" Cancel="yes" Text="&amp;No">
+          <Publish Event="EndDialog" Value="Return" />
+        </Control>
+      </Dialog>
+
+      <Dialog Id="Finished" Width="370" Height="180" Title="[ProductName] Setup">
+        <Control Id="Title" Type="Text" X="20" Y="20" Width="330" Height="25" Text="{\Title}Setup is complete" />
+        <Control Id="Description" Type="Text" X="20" Y="55" Width="330" Height="70" Text="Click Finish to close this window." />
+        <Control Id="Finish" Type="PushButton" X="280" Y="145" Width="70" Height="23" Default="yes" Cancel="yes" Text="&amp;Finish">
+          <Publish Event="EndDialog" Value="Return" />
+        </Control>
+      </Dialog>
+
+      <Dialog Id="Failed" Width="370" Height="180" Title="[ProductName] Setup">
+        <Control Id="Title" Type="Text" X="20" Y="20" Width="330" Height="25" Text="{\Title}Setup failed" />
+        <Control Id="Description" Type="Text" X="20" Y="55" Width="330" Height="70"
+          Text="[ProductName] could not be installed. Resolve the reported error and run setup again." />
+        <Control Id="Finish" Type="PushButton" X="280" Y="145" Width="70" Height="23" Default="yes" Cancel="yes" Text="&amp;Finish">
+          <Publish Event="EndDialog" Value="Return" />
+        </Control>
+      </Dialog>
+
+      <Dialog Id="Cancelled" Width="370" Height="180" Title="[ProductName] Setup">
+        <Control Id="Title" Type="Text" X="20" Y="20" Width="330" Height="25" Text="{\Title}Setup was cancelled" />
+        <Control Id="Description" Type="Text" X="20" Y="55" Width="330" Height="70" Text="Run setup again when you are ready." />
+        <Control Id="Finish" Type="PushButton" X="280" Y="145" Width="70" Height="23" Default="yes" Cancel="yes" Text="&amp;Finish">
+          <Publish Event="EndDialog" Value="Return" />
+        </Control>
+      </Dialog>
+
+      <!-- Shown by Windows Installer when an update or repair must replace
+           OxyPad.exe while OxyPad is running. OK closes OxyPad (its session
+           keeps the open tabs and unsaved text) and continues. -->
+      <Dialog Id="MsiRMFilesInUse" Width="370" Height="200" Title="[ProductName] Setup" KeepModeless="yes">
+        <Control Id="Title" Type="Text" X="20" Y="15" Width="330" Height="25" Text="{\Title}[ProductName] is running" />
+        <Control Id="Description" Type="Text" X="20" Y="45" Width="330" Height="30"
+          Text="These programs use files that setup must update. Click OK to close them and continue, or Cancel to stop setup." />
+        <Control Id="List" Type="ListBox" X="20" Y="80" Width="330" Height="55" Property="FileInUseProcess" Sunken="yes" TabSkip="yes" />
+        <Control Id="OK" Type="PushButton" X="195" Y="165" Width="75" Height="23" Default="yes" Text="OK">
+          <Publish Property="MSIRMSHUTDOWN" Value="2" Order="1" />
+          <Publish Event="EndDialog" Value="Return" Order="2" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="280" Y="165" Width="70" Height="23" Cancel="yes" Text="Cancel">
+          <Publish Event="EndDialog" Value="Exit" />
+        </Control>
+      </Dialog>
+
+      <InstallUISequence>
+        <Show Dialog="Welcome" Before="Maintenance" Condition="UILevel = 5 AND NOT Installed" />
+        <Show Dialog="Maintenance" Before="Progress" Condition="UILevel = 5 AND Installed AND NOT REMOVE AND NOT REINSTALL" />
+        <Show Dialog="Progress" Before="ExecuteAction" Condition="UILevel = 5" />
+        <Show Dialog="Finished" OnExit="success" Condition="UILevel = 5" />
+        <Show Dialog="Failed" OnExit="error" Condition="UILevel = 5" />
+        <Show Dialog="Cancelled" OnExit="cancel" Condition="UILevel = 5" />
+      </InstallUISequence>
+    </UI>
+  </Fragment>
+</Wix>

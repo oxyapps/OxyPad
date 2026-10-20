@@ -14,6 +14,7 @@ mod assets;
 mod compare_tab;
 mod editor_tab;
 mod i18n;
+mod instance;
 mod log_tab;
 mod menus;
 mod preferences;
@@ -58,6 +59,8 @@ fn parse_args() -> Vec<LaunchItem> {
                     std::process::exit(2);
                 }
             },
+            // Old macOS versions pass a process serial number to apps started from Finder.
+            Some(arg) if arg.starts_with("-psn_") => {}
             _ => items.push(LaunchItem { path: PathBuf::from(arg), follow: false }),
         }
     }
@@ -66,8 +69,22 @@ fn parse_args() -> Vec<LaunchItem> {
 
 fn main() {
     let launch = parse_args();
+    let listener = match instance::claim(&launch) {
+        instance::Claim::Primary(listener) => listener,
+        instance::Claim::Forwarded => return,
+    };
+    // Files from later launches, and on macOS from Finder and the Dock.
+    let (opened, received) = futures::channel::mpsc::unbounded();
+    if let Some(listener) = listener {
+        instance::serve(listener, opened.clone());
+    }
 
-    gpui_kit::application().with_assets(assets::AppAssets).run(move |cx| {
+    let app = gpui_kit::application().with_assets(assets::AppAssets);
+    app.on_open_urls(move |urls| {
+        let items = instance::paths_from_urls(&urls).into_iter().map(|path| LaunchItem { path, follow: false });
+        let _ = opened.unbounded_send(items.collect());
+    });
+    app.run(move |cx| {
         gpui_kit::init(cx);
         preferences::init(cx);
         i18n::init(cx);
@@ -78,6 +95,7 @@ fn main() {
         cx.on_action(|_: &Quit, cx| windows::request_quit(cx));
         cx.on_action(|_: &OpenSettings, cx| preferences::open_window(cx));
         windows::init(launch, cx);
+        windows::receive(received, cx);
         cx.activate(true);
     });
 }

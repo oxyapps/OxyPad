@@ -173,6 +173,14 @@ jobs:
           $shortcut = Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs\OxyPad.lnk'
           if (-not (Test-Path $shortcut)) { throw "no Start menu shortcut at $shortcut" }
           Write-Output 'ok Start menu shortcut'
+          # Both options are on by default in an unattended install.
+          $desktop = Join-Path ([Environment]::GetFolderPath('CommonDesktopDirectory')) 'OxyPad.lnk'
+          if (-not (Test-Path $desktop)) { throw "no desktop shortcut at $desktop" }
+          $menu = 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Classes\*\shell\OxyPad.Edit'
+          if (-not (Test-Path -LiteralPath "$menu\command")) { throw 'no "Edit with OxyPad" menu' }
+          $apps = Get-ItemProperty 'HKLM:\SOFTWARE\RegisteredApplications'
+          if ($apps.OxyPad -ne 'SOFTWARE\OxyApps\OxyPad\Capabilities') { throw 'OxyPad is not in Default apps' }
+          Write-Output 'ok desktop shortcut, Edit with OxyPad, Default apps'
 
           # A GUI app: no console output to read, but it must start and exit cleanly.
           $run = Start-Process $exe -ArgumentList '--version' -Wait -PassThru
@@ -182,6 +190,8 @@ jobs:
           $p = Start-Process msiexec.exe -ArgumentList '/x', "`"$msi`"", '/qn' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "msiexec /x exited $($p.ExitCode)" }
           if (Test-Path $exe) { throw 'uninstall left OxyPad.exe behind' }
+          if (Test-Path $desktop) { throw 'uninstall left the desktop shortcut behind' }
+          if (Test-Path -LiteralPath $menu) { throw 'uninstall left the "Edit with OxyPad" menu behind' }
           Write-Output 'ok uninstalled'
 
   linux:
@@ -282,8 +292,9 @@ jobs:
               echo 'or run `xattr -dr com.apple.quarantine /Applications/OxyPad.app` in Terminal.'
             fi
             echo
-            echo "**Windows:** the MSI installs OxyPad for all users, with a Start menu shortcut and an"
-            echo "entry under *Open with* for text and code files. The portable zip needs no installation: unzip it"
+            echo "**Windows:** the MSI installs OxyPad for all users, with a Start menu shortcut, an entry"
+            echo "under *Open with* and in *Default apps* for text and code files, and, if you leave them checked,"
+            echo "a desktop shortcut and *Edit with OxyPad* in the right-click menu of files. The portable zip needs no installation: unzip it"
             echo "and run OxyPad.exe. Windows SmartScreen may warn the first time, as OxyPad is not signed"
             echo "yet: choose **More info ▸ Run anyway**."
             echo

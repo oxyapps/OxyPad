@@ -11,6 +11,7 @@ use std::{
     time::Duration,
 };
 
+use futures::{StreamExt, channel::mpsc::UnboundedReceiver};
 use gpui_kit::{component::TitleBar, *};
 use oxypad_session::{Session, SessionStore, WindowSession};
 
@@ -150,6 +151,41 @@ pub fn open(content: WindowSession, launch: Vec<LaunchItem>, near: Option<Bounds
     }
 }
 
+/// Opens the files sent by later launches (and by Finder on macOS) in the
+/// front window, and brings it forward; with no files, only brings it forward.
+pub fn receive(mut received: UnboundedReceiver<Vec<LaunchItem>>, cx: &mut App) {
+    cx.spawn(async move |cx| {
+        while let Some(items) = received.next().await {
+            cx.update(|cx| open_in_front(items, cx));
+        }
+    })
+    .detach();
+}
+
+fn open_in_front(items: Vec<LaunchItem>, cx: &mut App) {
+    let Some(window) = front(cx) else {
+        open(WindowSession::default(), items, None, cx);
+        return;
+    };
+    let Some(workspace) = window.workspace.upgrade() else { return };
+    let _ = window.handle.update(cx, |_, window, cx| {
+        workspace.update(cx, |workspace, cx| {
+            for item in items {
+                workspace.open_path(item.path, item.follow, window, cx);
+            }
+        });
+        window.activate_window();
+    });
+    cx.activate(true);
+}
+
+/// The window in front, or else the one opened last.
+fn front(cx: &App) -> Option<&OpenWindow> {
+    let active = cx.active_window();
+    let windows = &cx.global::<Windows>().open;
+    windows.iter().find(|window| Some(window.handle) == active).or(windows.last())
+}
+
 /// A new, empty window.
 pub fn open_empty(near: Option<Bounds<Pixels>>, cx: &mut App) {
     open(WindowSession::default(), Vec::new(), near, cx);
@@ -255,14 +291,7 @@ pub fn request_quit(cx: &mut App) {
         cx.quit();
         return;
     }
-    let front = cx.active_window();
-    let windows = &cx.global::<Windows>().open;
-    let Some(handle) = windows
-        .iter()
-        .find(|window| Some(window.handle) == front)
-        .or(windows.last())
-        .map(|window| window.handle)
-    else {
+    let Some(handle) = front(cx).map(|window| window.handle) else {
         cx.quit();
         return;
     };
