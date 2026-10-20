@@ -73,7 +73,7 @@ impl Global for Languages {}
 
 /// Loads the installed languages. Call once at startup.
 pub fn init(cx: &mut App) {
-    let dir = oxypad_session::data_dir().ok().map(|dir| dir.join("languages"));
+    let dir = oxypad_session::data_dir().ok().map(|dir| dir.join("code-languages"));
     cx.set_global(Languages { dir, installed: Vec::new(), libraries: Vec::new() });
     reload(cx);
 }

@@ -1,4 +1,4 @@
-//! Builds OxyPad's additional language pack for the current platform.
+//! Builds OxyPad's additional code language pack for the current platform.
 //!
 //! ```text
 //! cargo run -p oxypad-language-pack -- [OUT_DIR]
@@ -8,7 +8,7 @@
 //! as OxyPad expects them in its `languages` folder:
 //!
 //! ```text
-//! OUT_DIR/oxypad-languages-<version>-<os>-<arch>/
+//! OUT_DIR/oxypad-code-languages-<version>-<os>-<arch>/
 //!   manifest.json
 //!   README.txt
 //!   kotlin/
@@ -148,7 +148,7 @@ fn main() -> Result<()> {
 
     let version = env!("CARGO_PKG_VERSION");
     let platform = platform_label();
-    let pack = out_root.join(format!("oxypad-languages-{version}-{platform}"));
+    let pack = out_root.join(format!("oxypad-code-languages-{version}-{platform}"));
     if pack.exists() {
         fs::remove_dir_all(&pack)?;
     }
@@ -282,17 +282,17 @@ fn compile(src: &Path, crate_dir: &Path, output: &Path) -> Result<()> {
 
 fn readme(version: &str, platform: &str) -> String {
     format!(
-        "OxyPad additional language pack {version} ({platform})\n\
+        "OxyPad code language pack {version} ({platform})\n\
          \n\
          Adds syntax highlighting for: {}.\n\
          \n\
          To install, copy the language folders (kotlin, swift, ...) into OxyPad's\n\
-         languages folder, then choose Reload Languages in Settings > Code Languages\n\
+         code languages folder, then choose Reload Languages in Settings > Code Languages\n\
          (or restart OxyPad). Open Folder on that page opens it:\n\
          \n\
-         \x20 macOS    ~/Library/Application Support/oxypad/languages\n\
-         \x20 Windows  %LOCALAPPDATA%\\oxypad\\languages\n\
-         \x20 Linux    ~/.local/share/oxypad/languages\n\
+         \x20 macOS    ~/Library/Application Support/oxypad/code-languages\n\
+         \x20 Windows  %LOCALAPPDATA%\\oxypad\\code-languages\n\
+         \x20 Linux    ~/.local/share/oxypad/code-languages\n\
          \n\
          Use the pack that matches your OxyPad version and platform.\n",
         SPECS.iter().map(|spec| spec.display_name).collect::<Vec<_>>().join(", ")

@@ -27,7 +27,7 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Interface in English and Brazilian Portuguese, following the system language or the
   one picked in Settings ▸ General; new languages are single YAML files (see
   TRANSLATING.md).
-- An additional language pack with Kotlin, C#, Scala, Swift, Ruby, Elixir, Zig and PHP
+- An additional code language pack with Kotlin, C#, Scala, Swift, Ruby, Elixir, Zig and PHP
   highlighting, kept out of the app to keep it small.
 - Release builds: DMGs for Apple silicon and Intel Macs, and zips for Windows x64 and
   ARM64.

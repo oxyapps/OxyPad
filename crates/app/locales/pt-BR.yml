@@ -97,7 +97,7 @@ notification:
   save_before_following: Salve o arquivo antes de acompanhá-lo.
   compared_tab_closed: Uma das abas comparadas foi fechada.
   no_highlighting: Sem destaque de sintaxe para %{name}
-  in_language_pack: Ela está no pacote adicional de linguagens.
+  in_language_pack: Ela está no pacote adicional de linguagens de código.
   show_code_languages: Ver Linguagens de Código
 
 about:
@@ -171,7 +171,7 @@ settings:
   initial_kib_detail: Quanto do final de um log existente é mostrado ao começar a acompanhar.
 
   code_languages: Linguagens de Código
-  language_pack: Pacote Adicional de Linguagens
+  language_pack: Pacote Adicional de Linguagens de Código
   installed: Instalada
   not_installed: Não instalada
   not_loaded: "Não carregada: %{error}"
@@ -182,7 +182,7 @@ settings:
   reload: Recarregar
   reload_languages: Recarregar Linguagens
   reload_detail: Carrega as linguagens copiadas para a pasta sem reiniciar.
-  pack_footer: Kotlin, C#, Scala, Swift, Ruby, Elixir, Zig e PHP não vêm embutidas, para manter o OxyPad pequeno. Baixe o pacote de linguagens, copie as pastas dele para a pasta de linguagens e escolha Recarregar Linguagens.
+  pack_footer: Kotlin, C#, Scala, Swift, Ruby, Elixir, Zig e PHP não vêm embutidas, para manter o OxyPad pequeno. Baixe o pacote de linguagens de código, copie as pastas dele para a pasta de linguagens de código e escolha Recarregar Linguagens.
 
 # Textos dos componentes do gpui-kit usados pelo OxyPad.
 gpui_component:

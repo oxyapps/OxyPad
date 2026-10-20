@@ -1,7 +1,7 @@
 name: Release
 
 # Pushing a tag such as v0.1.0 builds OxyPad for macOS (Apple silicon, Intel)
-# and Windows (x64, ARM64), plus the language pack, and publishes a GitHub
+# and Windows (x64, ARM64), plus the code language pack, and publishes a GitHub
 # Release with all of them. The tag must match the version in Cargo.toml, and
 # CHANGELOG.md must have a "## [X.Y.Z]" section, used as the release notes.
 # Running it by hand from the Actions tab builds everything without
@@ -147,7 +147,7 @@ jobs:
           if-no-files-found: error
 
   language-pack:
-    name: Language pack
+    name: Code language pack
     needs: version
     uses: ./.github/workflows/language-pack.yml
 
@@ -199,8 +199,8 @@ jobs:
             echo "**Windows:** unzip and run OxyPad.exe; no installation needed. Windows SmartScreen may"
             echo "warn the first time, as the app is not signed: choose **More info ▸ Run anyway**."
             echo
-            echo "**Language pack:** Kotlin, C#, Scala, Swift, Ruby, Elixir, Zig and PHP highlighting comes"
-            echo "in \`oxypad-languages-$VERSION-<platform>.zip\` (macOS: the universal one). Copy its folders"
+            echo "**Code language pack:** Kotlin, C#, Scala, Swift, Ruby, Elixir, Zig and PHP highlighting comes"
+            echo "in \`oxypad-code-languages-$VERSION-<platform>.zip\` (macOS: the universal one). Copy its folders"
             echo "into the folder shown in OxyPad's Settings ▸ Code Languages and choose Reload Languages."
           } >> notes.md
           ls -l dist

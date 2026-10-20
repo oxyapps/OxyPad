@@ -38,13 +38,13 @@ cargo run --release -p oxypad -- file.rs -f /var/log/system.log
 Set `OXYPAD_DATA_DIR` to keep the session somewhere other than the per-user
 data directory (useful while developing).
 
-## Language pack
+## Code language pack
 
 The most common languages are built in. Kotlin, C#, Scala, Swift, Ruby,
 Elixir, Zig and PHP have large grammars and ship separately, keeping the app
 about 22 MB smaller. Opening one of those files shows a toast with a button to
 the [releases page](https://github.com/oxyapps/OxyPad/releases); copy the
-pack's folders into the languages folder (Settings › Code Languages › Open Folder)
+pack's folders into the code languages folder (Settings › Code Languages › Open Folder)
 and choose Reload Languages.
 
 Build the pack for the current platform with:
@@ -74,7 +74,7 @@ The artwork lives in `oxypad-icons/`; each platform takes it from there.
 
 | Platform | How                                   | Icon source                          |
 | -------- | ------------------------------------- | ------------------------------------ |
-| macOS    | `scripts/bundle-macos.sh` → `target/release/bundle/OxyPad.app`; `scripts/build-dmg.sh apple-silicon\|intel` → `dist/*.dmg` | `macos/oxypad-macos-1024.png` (`.icns` generated) |
+| macOS    | `scripts/bundle-macos.sh` → `target/release/bundle/OxyPad.app`; `scripts/build-dmg.sh apple-silicon\|intel` → `dist/*.dmg` | `oxypad.icns` |
 | Windows  | `cargo build --release` embeds it in `oxypad.exe` (`crates/app/build.rs`) | `oxypad.ico` |
 | Linux    | `scripts/install-linux.sh` (binary, `.desktop`, hicolor icons into `~/.local`) | `png/`, `oxypad.svg` |
 
@@ -105,7 +105,7 @@ To release:
 | `OxyPad-<version>-macos-intel.dmg` | Intel Macs |
 | `OxyPad-<version>-windows-x64.zip` | Windows on x64 |
 | `OxyPad-<version>-windows-arm64.zip` | Windows on ARM |
-| `oxypad-languages-<version>-<platform>.zip` | the language pack |
+| `oxypad-code-languages-<version>-<platform>.zip` | the code language pack |
 
 Running the workflow by hand from the Actions tab builds the same files
 without publishing them. The macOS DMGs are signed with a Developer ID and

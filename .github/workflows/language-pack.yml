@@ -1,8 +1,8 @@
-# Builds the additional language pack for every platform OxyPad is released
+# Builds the additional code language pack for every platform OxyPad is released
 # for. The release workflow calls it and attaches the zips to the release,
-# where OxyPad's "Get Language Pack" button sends users. It can also be run
+# which OxyPad's Settings › Code Languages links to. It can also be run
 # by hand from the Actions tab; the zips are then kept as workflow artifacts.
-name: Language pack
+name: Code language pack
 
 on:
   workflow_call:
@@ -47,7 +47,7 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           cd dist
-          for pack in oxypad-languages-*; do zip -qr "../$pack.zip" "$pack"; done
+          for pack in oxypad-code-languages-*; do zip -qr "../$pack.zip" "$pack"; done
       - name: Archive (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -58,6 +58,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: oxypad-languages-${{ matrix.platform }}
-          path: oxypad-languages-*.zip
+          name: oxypad-code-languages-${{ matrix.platform }}
+          path: oxypad-code-languages-*.zip
           if-no-files-found: error

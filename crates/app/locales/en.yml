@@ -100,7 +100,7 @@ notification:
   save_before_following: Save the file before following it.
   compared_tab_closed: One of the compared tabs was closed.
   no_highlighting: No syntax highlighting for %{name}
-  in_language_pack: It's in the additional language pack.
+  in_language_pack: It's in the additional code language pack.
   show_code_languages: Show Code Languages
 
 about:
@@ -174,7 +174,7 @@ settings:
   initial_kib_detail: How much of the end of an existing log is shown when following starts.
 
   code_languages: Code Languages
-  language_pack: Additional Language Pack
+  language_pack: Additional Code Language Pack
   installed: Installed
   not_installed: Not installed
   not_loaded: "Not loaded: %{error}"
@@ -185,7 +185,7 @@ settings:
   reload: Reload
   reload_languages: Reload Languages
   reload_detail: Load languages copied into the folder without restarting.
-  pack_footer: Kotlin, C#, Scala, Swift, Ruby, Elixir, Zig and PHP are not built in, to keep OxyPad small. Download the language pack, copy its folders into the languages folder and choose Reload Languages.
+  pack_footer: Kotlin, C#, Scala, Swift, Ruby, Elixir, Zig and PHP are not built in, to keep OxyPad small. Download the code language pack, copy its folders into the code languages folder and choose Reload Languages.
 
 # Texts of the gpui-kit components OxyPad uses (editor context menu, find
 # bar, Settings search). Ours take precedence over gpui-kit's own, so they
