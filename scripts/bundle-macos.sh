@@ -23,7 +23,7 @@ cd "$(dirname "$0")/.."
 APP_NAME="OxyPad"
 BUNDLE_ID="org.oxyapps.oxypad"
 BINARY="oxypad"
-ICON_SOURCE="oxypad-icons/png/oxypad-1024.png"
+ICON="oxypad-icons/macos/oxypad-macos.icns"
 TARGET="${1:-}"
 
 if [ -n "$TARGET" ]; then
@@ -46,26 +46,8 @@ BUNDLE="$STAGE/$APP_NAME.app"
 mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
 cp "$OUT/$BINARY" "$BUNDLE/Contents/MacOS/$BINARY"
 
-# The artwork fills its canvas; macOS icons keep it within Apple's grid,
-# 824 of 1024 pixels with a transparent margin, so OxyPad matches the size
-# of other apps in the Dock and Launchpad.
-ICONSET="$STAGE/$APP_NAME.iconset"
-rm -rf "$ICONSET"
-mkdir -p "$ICONSET"
-sips -Z 824 "$ICON_SOURCE" --out "$ICONSET/artwork.png" >/dev/null
-sips -p 1024 1024 "$ICONSET/artwork.png" --out "$ICONSET/icon_512x512@2x.png" >/dev/null
-rm "$ICONSET/artwork.png"
-for size in 16 32 128 256 512; do
-    for scale in 1 2; do
-        pixels=$((size * scale))
-        name="icon_${size}x${size}"
-        [ "$scale" = 2 ] && name="${name}@2x"
-        [ "$pixels" = 1024 ] && continue
-        sips -z "$pixels" "$pixels" "$ICONSET/icon_512x512@2x.png" --out "$ICONSET/$name.png" >/dev/null
-    done
-done
-iconutil -c icns "$ICONSET" -o "$BUNDLE/Contents/Resources/$APP_NAME.icns"
-rm -rf "$ICONSET"
+# Made by scripts/make-macos-icons.sh, within Apple's icon grid.
+cp -X "$ICON" "$BUNDLE/Contents/Resources/$APP_NAME.icns"
 
 cat > "$BUNDLE/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
