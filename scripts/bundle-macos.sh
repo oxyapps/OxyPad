@@ -23,7 +23,7 @@ cd "$(dirname "$0")/.."
 APP_NAME="OxyPad"
 BUNDLE_ID="org.oxyapps.oxypad"
 BINARY="oxypad"
-ICON_SOURCE="oxypad-icons/macos/oxypad-macos-1024.png"
+ICON="oxypad-icons/oxypad.icns"
 TARGET="${1:-}"
 
 if [ -n "$TARGET" ]; then
@@ -41,17 +41,8 @@ rm -rf "$BUNDLE"
 mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
 cp "$OUT/$BINARY" "$BUNDLE/Contents/MacOS/$BINARY"
 
-# Every size macOS asks for, including the 16 and 32 pt 1x variants.
-ICONSET="$OUT/bundle/$APP_NAME.iconset"
-rm -rf "$ICONSET"
-mkdir -p "$ICONSET"
-for size in 16 32 128 256 512; do
-    sips -z "$size" "$size" "$ICON_SOURCE" --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
-    double=$((size * 2))
-    sips -z "$double" "$double" "$ICON_SOURCE" --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
-done
-iconutil -c icns "$ICONSET" -o "$BUNDLE/Contents/Resources/$APP_NAME.icns"
-rm -rf "$ICONSET"
+# Without extended attributes (quarantine, Finder info), which codesign rejects.
+cp -X "$ICON" "$BUNDLE/Contents/Resources/$APP_NAME.icns"
 
 cat > "$BUNDLE/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
