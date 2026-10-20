@@ -43,7 +43,9 @@
               Icon="OxyPad.ico"
               Advertise="yes" />
           </File>
-          <File Id="License" Name="LICENSE.txt" Source="$(LicenseFile)" />
+        </Component>
+        <Component Id="License">
+          <File Id="License" Name="LICENSE.txt" Source="$(LicenseFile)" KeyPath="yes" />
         </Component>
 
         <Component Id="Registration">
@@ -77,6 +79,7 @@
 
     <Feature Id="Main">
       <ComponentRef Id="Executable" />
+      <ComponentRef Id="License" />
       <ComponentRef Id="Registration" />
     </Feature>
   </Package>
