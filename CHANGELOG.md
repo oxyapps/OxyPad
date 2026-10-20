@@ -33,8 +33,9 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Closing a window closes only it, asking first when its unsaved changes would be
   lost; closing the last one quits.
 - Printing (File ▸ Print…, Mod-P, or a tab's menu), with syntax colors: the system's
-  print panel on macOS, the Print dialog on Windows (with the file name and page
-  numbers on each page), and the default printer through `lp` on Linux.
+  print panel on macOS; on Windows a preview of the pages, laid out for the default
+  printer, then the Print dialog (with the file name and page numbers on each page);
+  and the default printer through `lp` on Linux.
 - Tail mode: any saved file can be followed live and read-only, like `tail -F`. It
   survives truncation and log rotation, colors error and warning lines, and pauses
   while you scroll up. It never keeps the program writing the log from writing,

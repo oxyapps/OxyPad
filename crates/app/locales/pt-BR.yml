@@ -93,6 +93,11 @@ print:
   confirm: Imprimir “%{name}”?
   confirm_detail: Será enviado para a impressora padrão.
   print: Imprimir
+  preview_title: Visualizar Impressão — %{name}
+  one_page: 1 página
+  pages: "%{count} páginas"
+  print_button: Imprimir…
+  close: Fechar
 
 status:
   untitled: Sem título

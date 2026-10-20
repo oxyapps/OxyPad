@@ -4,14 +4,20 @@
 //!
 //! - macOS: AppKit's print panel, as a sheet on the window, printing an
 //!   NSTextView (with Preview and Save as PDF).
-//! - Windows: the Print dialog, then GDI pages laid out here, with the file
-//!   name and page number on each. Runs on a thread of its own, since the
-//!   dialog has its own message loop.
+//! - Windows: a preview of the pages (`preview.rs`), whose Print button
+//!   opens the Print dialog; then GDI pages, laid out like the preview, with
+//!   the file name and page number on each. The dialog runs on a thread of
+//!   its own, since it has its own message loop.
 //! - Linux and the BSDs: the default printer through CUPS' `lp`, after a
 //!   confirmation, without colors.
 //!
 //! Colors come from the light syntax theme: paper is white whatever the
 //! window looks like.
+
+// The page layout is used by the Windows printing and preview only.
+#![cfg_attr(not(target_os = "windows"), allow(dead_code))]
+
+mod preview;
 
 use std::ops::Range;
 
@@ -29,6 +35,90 @@ pub struct PrintJob {
 
 /// Point size of the printed text.
 const FONT_SIZE: f64 = 9.;
+/// Columns of a tab stop.
+const TAB_WIDTH: usize = 4;
+
+/// A page's measurements, in points (1/72 inch), and those of the text on it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PageSetup {
+    /// The printable area.
+    pub width: f32,
+    pub height: f32,
+    /// Between the printable area and the text.
+    pub margin_x: f32,
+    pub margin_y: f32,
+    /// The monospaced font's advance and line height.
+    pub char_width: f32,
+    pub line_height: f32,
+}
+
+impl PageSetup {
+    /// An A4 page with Consolas' proportions, when no printer can tell.
+    pub fn fallback() -> Self {
+        let size = FONT_SIZE as f32;
+        Self { width: 595., height: 842., margin_x: 36., margin_y: 36., char_width: size * 0.55, line_height: size * 1.17 }
+    }
+
+    /// Characters on a line.
+    pub fn columns(&self) -> usize {
+        // The small allowance keeps rounding from losing a column the
+        // device-unit arithmetic would have.
+        (((self.width - 2. * self.margin_x) / self.char_width + 1e-3).floor() as usize).max(20)
+    }
+
+    /// Text lines on a page, below the header line and a blank one.
+    pub fn lines_per_page(&self) -> usize {
+        (((self.height - 2. * self.margin_y) / self.line_height + 1e-3).floor() as usize).saturating_sub(2).max(1)
+    }
+}
+
+/// A piece of a printed line: its first column, its color (black when
+/// `None`) and its text.
+pub type Piece = (usize, Option<Rgba>, String);
+
+/// The text cut into printed lines of at most `columns` characters, tabs
+/// expanded.
+pub fn layout(job: &PrintJob, columns: usize) -> Vec<Vec<Piece>> {
+    let mut lines = vec![Vec::new()];
+    let mut column = 0;
+    let mut runs = job.colors.iter().peekable();
+    let push = |lines: &mut Vec<Vec<Piece>>, column: usize, color: Option<Rgba>, text: &str| {
+        let line = lines.last_mut().expect("never empty");
+        match line.last_mut() {
+            Some((start, last_color, last)) if *last_color == color && *start + last.chars().count() == column => {
+                last.push_str(text);
+            }
+            _ => line.push((column, color, text.to_owned())),
+        }
+    };
+    for (at, ch) in job.text.char_indices() {
+        while runs.peek().is_some_and(|(range, _)| range.end <= at) {
+            runs.next();
+        }
+        let color = match runs.peek() {
+            Some((range, rgba)) if range.start <= at => Some(*rgba),
+            _ => None,
+        };
+        match ch {
+            '\n' => {
+                lines.push(Vec::new());
+                column = 0;
+            }
+            '\r' => {}
+            '\t' => column += TAB_WIDTH - column % TAB_WIDTH,
+            _ => {
+                if column >= columns {
+                    lines.push(Vec::new());
+                    column = 0;
+                }
+                let mut buffer = [0; 4];
+                push(&mut lines, column, color, ch.encode_utf8(&mut buffer));
+                column += 1;
+            }
+        }
+    }
+    lines
+}
 
 /// The window's native handle.
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -161,34 +251,73 @@ mod platform {
         Foundation::{GlobalFree, HWND},
         Graphics::Gdi::{
             CLIP_DEFAULT_PRECIS, CreateFontW, DEFAULT_CHARSET, DEFAULT_QUALITY, DeleteDC, DeleteObject, FF_MODERN,
-            FIXED_PITCH, FW_NORMAL, GetDeviceCaps, GetTextMetricsW, HDC, HORZRES, LOGPIXELSX, LOGPIXELSY,
-            OUT_DEFAULT_PRECIS, SelectObject, SetBkMode, SetTextColor, TEXTMETRICW, TRANSPARENT, TextOutW, VERTRES,
+            FIXED_PITCH, FW_NORMAL, GetDeviceCaps, GetTextMetricsW, HDC, HFONT, HGDIOBJ, HORZRES, LOGPIXELSX,
+            LOGPIXELSY, OUT_DEFAULT_PRECIS, SelectObject, SetBkMode, SetTextColor, TEXTMETRICW, TRANSPARENT,
+            TextOutW, VERTRES,
         },
         Storage::Xps::{AbortDoc, DOCINFOW, EndDoc, EndPage, StartDocW, StartPage},
         UI::Controls::Dialogs::{
-            PD_NOPAGENUMS, PD_NOSELECTION, PD_RETURNDC, PD_USEDEVMODECOPIESANDCOLLATE, PRINTDLGW, PrintDlgW,
+            PD_NOPAGENUMS, PD_NOSELECTION, PD_RETURNDC, PD_RETURNDEFAULT, PD_RETURNIC, PD_USEDEVMODECOPIESANDCOLLATE,
+            PRINTDLGW, PrintDlgW,
         },
     };
 
-    use super::{FONT_SIZE, PrintJob, window_handle};
+    use super::{FONT_SIZE, PageSetup, PrintJob, layout, window_handle};
 
-    /// Columns of a tab stop.
-    const TAB_WIDTH: usize = 4;
     /// Black, for text without a color.
     const BLACK: u32 = 0;
 
-    pub fn print(job: PrintJob, window: &mut Window, _: &mut App) -> Result<()> {
+    /// Shows the preview, laid out for the default printer; its Print
+    /// button opens the Print dialog.
+    pub fn print(job: PrintJob, window: &mut Window, cx: &mut App) -> Result<()> {
         let RawWindowHandle::Win32(handle) = window_handle(window)?.as_raw() else {
             bail!("not a Win32 window");
         };
         let owner = handle.hwnd.get();
-        // The dialog runs a message loop of its own: keep it off GPUI's thread.
+        // SAFETY: the information context is created and freed here.
+        let setup = unsafe { default_setup() }.unwrap_or_else(PageSetup::fallback);
+        super::preview::open(job, setup, move |job| show_dialog(job, owner), cx);
+        Ok(())
+    }
+
+    /// The Print dialog, owned by the editor window, then the pages. On a
+    /// thread of its own: the dialog runs a message loop.
+    fn show_dialog(job: PrintJob, owner: isize) {
         std::thread::spawn(move || {
             // SAFETY: the window outlives the dialog it owns, or the dialog
             // closes with it; everything else is created and freed here.
             unsafe { print_on_this_thread(job, owner as HWND) };
         });
-        Ok(())
+    }
+
+    /// The default printer's page, measured without asking anything.
+    unsafe fn default_setup() -> Option<PageSetup> {
+        let mut dialog: PRINTDLGW = unsafe { mem::zeroed() };
+        dialog.lStructSize = mem::size_of::<PRINTDLGW>() as u32;
+        dialog.Flags = PD_RETURNDEFAULT | PD_RETURNIC;
+        if unsafe { PrintDlgW(&mut dialog) } == 0 || dialog.hDC.is_null() {
+            return None; // No printer.
+        }
+        let hdc = dialog.hDC;
+        let font = unsafe { Font::select(hdc) };
+        let setup = font.setup;
+        unsafe {
+            font.release(hdc);
+            DeleteDC(hdc);
+            free_dialog(&dialog);
+        }
+        Some(setup)
+    }
+
+    unsafe fn free_dialog(dialog: &PRINTDLGW) {
+        unsafe {
+            if !dialog.hDevMode.is_null() {
+                GlobalFree(dialog.hDevMode);
+            }
+            if !dialog.hDevNames.is_null() {
+                GlobalFree(dialog.hDevNames);
+            }
+        }
     }
 
     unsafe fn print_on_this_thread(job: PrintJob, owner: HWND) {
@@ -203,56 +332,79 @@ mod platform {
         unsafe {
             print_pages(&job, hdc);
             DeleteDC(hdc);
-            if !dialog.hDevMode.is_null() {
-                GlobalFree(dialog.hDevMode);
-            }
-            if !dialog.hDevNames.is_null() {
-                GlobalFree(dialog.hDevNames);
+            free_dialog(&dialog);
+        }
+    }
+
+    /// The printing font, selected into a printer's device context, and the
+    /// page measured with it.
+    struct Font {
+        font: HFONT,
+        previous: HGDIOBJ,
+        setup: PageSetup,
+        /// Device units per point, across and down.
+        scale_x: f32,
+        scale_y: f32,
+    }
+
+    impl Font {
+        unsafe fn select(hdc: HDC) -> Self {
+            let caps = |index: u32| unsafe { GetDeviceCaps(hdc, index as i32) };
+            let (dpi_x, dpi_y) = (caps(LOGPIXELSX).max(1), caps(LOGPIXELSY).max(1));
+            let face: Vec<u16> = "Consolas\0".encode_utf16().collect();
+            let height = -((FONT_SIZE * f64::from(dpi_y) / 72.).round() as i32);
+            let font = unsafe {
+                CreateFontW(
+                    height,
+                    0,
+                    0,
+                    0,
+                    FW_NORMAL as i32,
+                    0,
+                    0,
+                    0,
+                    DEFAULT_CHARSET as u32,
+                    OUT_DEFAULT_PRECIS as u32,
+                    CLIP_DEFAULT_PRECIS as u32,
+                    DEFAULT_QUALITY as u32,
+                    (FIXED_PITCH | FF_MODERN) as u32,
+                    face.as_ptr(),
+                )
+            };
+            let previous = unsafe { SelectObject(hdc, font) };
+            let mut metrics: TEXTMETRICW = unsafe { mem::zeroed() };
+            unsafe { GetTextMetricsW(hdc, &mut metrics) };
+            let (scale_x, scale_y) = (dpi_x as f32 / 72., dpi_y as f32 / 72.);
+            let setup = PageSetup {
+                width: caps(HORZRES) as f32 / scale_x,
+                height: caps(VERTRES) as f32 / scale_y,
+                // Half an inch inside the printable area.
+                margin_x: 36.,
+                margin_y: 36.,
+                char_width: metrics.tmAveCharWidth.max(1) as f32 / scale_x,
+                line_height: (metrics.tmHeight + metrics.tmExternalLeading).max(1) as f32 / scale_y,
+            };
+            Self { font, previous, setup, scale_x, scale_y }
+        }
+
+        unsafe fn release(self, hdc: HDC) {
+            unsafe {
+                SelectObject(hdc, self.previous);
+                DeleteObject(self.font);
             }
         }
     }
 
     unsafe fn print_pages(job: &PrintJob, hdc: HDC) {
-        let caps = |index: u32| unsafe { GetDeviceCaps(hdc, index as i32) };
-        let (dpi_x, dpi_y) = (caps(LOGPIXELSX), caps(LOGPIXELSY));
-        let (page_width, page_height) = (caps(HORZRES), caps(VERTRES));
-        // Half an inch inside the printable area.
-        let (margin_x, margin_y) = (dpi_x / 2, dpi_y / 2);
-
-        let face: Vec<u16> = "Consolas\0".encode_utf16().collect();
-        let height = -((FONT_SIZE * f64::from(dpi_y) / 72.).round() as i32);
-        let font = unsafe {
-            CreateFontW(
-                height,
-                0,
-                0,
-                0,
-                FW_NORMAL as i32,
-                0,
-                0,
-                0,
-                DEFAULT_CHARSET as u32,
-                OUT_DEFAULT_PRECIS as u32,
-                CLIP_DEFAULT_PRECIS as u32,
-                DEFAULT_QUALITY as u32,
-                (FIXED_PITCH | FF_MODERN) as u32,
-                face.as_ptr(),
-            )
-        };
-        let previous_font = unsafe { SelectObject(hdc, font) };
-        let mut metrics: TEXTMETRICW = unsafe { mem::zeroed() };
-        unsafe {
-            GetTextMetricsW(hdc, &mut metrics);
-            SetBkMode(hdc, TRANSPARENT as i32);
-        }
-        let line_height = (metrics.tmHeight + metrics.tmExternalLeading).max(1);
-        let char_width = metrics.tmAveCharWidth.max(1);
-        let columns = (((page_width - 2 * margin_x) / char_width).max(20)) as usize;
-        // A header line and a blank one above the text.
-        let lines_per_page = (((page_height - 2 * margin_y) / line_height) - 2).max(1) as usize;
-
-        let lines = layout(job, columns);
-        let pages = lines.len().div_ceil(lines_per_page).max(1);
+        let font = unsafe { Font::select(hdc) };
+        unsafe { SetBkMode(hdc, TRANSPARENT as i32) };
+        let setup = font.setup;
+        let x = |points: f32| (points * font.scale_x).round() as i32;
+        let y = |points: f32| (points * font.scale_y).round() as i32;
+        // The same layout as the preview's.
+        let lines = layout(job, setup.columns());
+        let per_page = setup.lines_per_page();
+        let pages = lines.len().div_ceil(per_page).max(1);
 
         let title: Vec<u16> = job.title.encode_utf16().chain(Some(0)).collect();
         let info = DOCINFOW {
@@ -263,10 +415,7 @@ mod platform {
             fwType: 0,
         };
         if unsafe { StartDocW(hdc, &info) } <= 0 {
-            unsafe {
-                SelectObject(hdc, previous_font);
-                DeleteObject(font);
-            }
+            unsafe { font.release(hdc) };
             return;
         }
         for page in 0..pages {
@@ -278,17 +427,16 @@ mod platform {
             let number = format!("{} / {pages}", page + 1);
             unsafe {
                 SetTextColor(hdc, BLACK);
-                text_out(hdc, margin_x, margin_y, &job.title);
-                let right = page_width - margin_x - char_width * number.chars().count() as i32;
-                text_out(hdc, right, margin_y, &number);
+                text_out(hdc, x(setup.margin_x), y(setup.margin_y), &job.title);
+                let right = setup.width - setup.margin_x - setup.char_width * number.chars().count() as f32;
+                text_out(hdc, x(right), y(setup.margin_y), &number);
             }
-            let first = page * lines_per_page;
-            for (row, line) in lines.iter().skip(first).take(lines_per_page).enumerate() {
-                let y = margin_y + line_height * (row as i32 + 2);
+            for (row, line) in lines.iter().skip(page * per_page).take(per_page).enumerate() {
+                let top = y(setup.margin_y + setup.line_height * (row as f32 + 2.));
                 for (column, color, text) in line {
                     unsafe {
-                        SetTextColor(hdc, *color);
-                        text_out(hdc, margin_x + char_width * *column as i32, y, text);
+                        SetTextColor(hdc, color.as_ref().map_or(BLACK, colorref));
+                        text_out(hdc, x(setup.margin_x + setup.char_width * *column as f32), top, text);
                     }
                 }
             }
@@ -299,61 +447,13 @@ mod platform {
         }
         unsafe {
             EndDoc(hdc);
-            SelectObject(hdc, previous_font);
-            DeleteObject(font);
+            font.release(hdc);
         }
     }
 
     unsafe fn text_out(hdc: HDC, x: i32, y: i32, text: &str) {
         let wide: Vec<u16> = text.encode_utf16().collect();
         unsafe { TextOutW(hdc, x, y, wide.as_ptr(), wide.len() as i32) };
-    }
-
-    /// The text cut into printed lines of at most `columns` characters, tabs
-    /// expanded; each line is a list of (column, color, text) pieces.
-    fn layout(job: &PrintJob, columns: usize) -> Vec<Vec<(usize, u32, String)>> {
-        let mut lines = vec![Vec::new()];
-        let mut column = 0;
-        let mut runs = job.colors.iter().peekable();
-        let push = |lines: &mut Vec<Vec<(usize, u32, String)>>, column: usize, color: u32, text: &str| {
-            let line = lines.last_mut().expect("never empty");
-            match line.last_mut() {
-                Some((start, last_color, last)) if *last_color == color && *start + last.chars().count() == column => {
-                    last.push_str(text);
-                }
-                _ => line.push((column, color, text.to_owned())),
-            }
-        };
-        for (at, ch) in job.text.char_indices() {
-            while runs.peek().is_some_and(|(range, _)| range.end <= at) {
-                runs.next();
-            }
-            let color = match runs.peek() {
-                Some((range, rgba)) if range.start <= at => colorref(rgba),
-                _ => BLACK,
-            };
-            match ch {
-                '\n' => {
-                    lines.push(Vec::new());
-                    column = 0;
-                }
-                '\r' => {}
-                '\t' => {
-                    let spaces = TAB_WIDTH - column % TAB_WIDTH;
-                    column += spaces;
-                }
-                _ => {
-                    if column >= columns {
-                        lines.push(Vec::new());
-                        column = 0;
-                    }
-                    let mut buffer = [0; 4];
-                    push(&mut lines, column, color, ch.encode_utf8(&mut buffer));
-                    column += 1;
-                }
-            }
-        }
-        lines
     }
 
     fn colorref(rgba: &gpui_kit::Rgba) -> u32 {
@@ -400,5 +500,40 @@ mod platform {
         let status = child.wait()?;
         anyhow::ensure!(status.success(), "lp exited with {status}");
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    // Not `super::*`: gpui_kit's `test` attribute would replace the standard one.
+    use gpui_kit::Rgba;
+
+    use super::{PageSetup, PrintJob, layout};
+
+    fn job(text: &str) -> PrintJob {
+        PrintJob { title: "a.txt".into(), text: text.into(), colors: Vec::new() }
+    }
+
+    #[test]
+    fn long_lines_wrap_and_tabs_expand() {
+        let lines = layout(&job("abcdefghij\n\tx"), 8);
+        let texts: Vec<Vec<(usize, &str)>> =
+            lines.iter().map(|line| line.iter().map(|(column, _, text)| (*column, text.as_str())).collect()).collect();
+        assert_eq!(texts, vec![vec![(0, "abcdefgh")], vec![(0, "ij")], vec![(4, "x")]]);
+    }
+
+    #[test]
+    fn colors_follow_their_ranges() {
+        let red = Rgba { r: 1., g: 0., b: 0., a: 1. };
+        let job = PrintJob { title: String::new(), text: "fn main".into(), colors: vec![(0..2, red)] };
+        let lines = layout(&job, 80);
+        assert_eq!(lines[0], vec![(0, Some(red), "fn".to_owned()), (2, None, " main".to_owned())]);
+    }
+
+    #[test]
+    fn a4_fits_eighty_columns() {
+        let setup = PageSetup::fallback();
+        assert!(setup.columns() >= 80, "{}", setup.columns());
+        assert!(setup.lines_per_page() > 50, "{}", setup.lines_per_page());
     }
 }

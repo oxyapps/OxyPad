@@ -98,6 +98,11 @@ print:
   confirm: Print “%{name}”?
   confirm_detail: It will be sent to the default printer.
   print: Print
+  preview_title: Print Preview — %{name}
+  one_page: 1 page
+  pages: "%{count} pages"
+  print_button: Print…
+  close: Close
 
 status:
   untitled: Untitled
