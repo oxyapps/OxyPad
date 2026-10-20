@@ -1,0 +1,83 @@
+<!--
+  The Windows installer, built with WiX Toolset v5 by the release workflow:
+
+    wix build packaging/windows/OxyPad.wxs -arch x64 ^
+      -d Version=0.1.0 -d ExeFile=path\to\oxypad.exe ^
+      -d IconFile=oxypad-icons\oxypad.ico -d LicenseFile=LICENSE ^
+      -o OxyPad.msi
+
+  It installs for all users into Program Files, adds a Start menu shortcut
+  and offers OxyPad under "Open with" for text and code files, without
+  taking over any file type. Installing a newer version replaces the old one.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <!-- The UpgradeCode never changes: it is how Windows recognizes OxyPad
+       when a newer version is installed. -->
+  <Package
+    Name="OxyPad"
+    Manufacturer="OxyApps"
+    Version="$(Version)"
+    UpgradeCode="43578B0B-7D4B-4A8A-81CD-F09B4DE7FF66"
+    Scope="perMachine"
+    Compressed="yes">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of OxyPad is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="OxyPad.ico" SourceFile="$(IconFile)" />
+    <!-- Installed apps list: icon and links. -->
+    <Property Id="ARPPRODUCTICON" Value="OxyPad.ico" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/oxyapps/OxyPad" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/oxyapps/OxyPad/issues" />
+
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="INSTALLFOLDER" Name="OxyPad">
+        <Component Id="Executable">
+          <File Id="OxyPadExe" Name="OxyPad.exe" Source="$(ExeFile)" KeyPath="yes">
+            <Shortcut
+              Id="StartMenuShortcut"
+              Directory="ProgramMenuFolder"
+              Name="OxyPad"
+              Description="A fast, native, cross-platform text editor"
+              WorkingDirectory="INSTALLFOLDER"
+              Icon="OxyPad.ico"
+              Advertise="yes" />
+          </File>
+          <File Id="License" Name="LICENSE.txt" Source="$(LicenseFile)" />
+        </Component>
+
+        <Component Id="Registration">
+          <!-- `oxypad` from Run (Win+R) and the Start menu search. -->
+          <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\OxyPad.exe">
+            <RegistryValue Type="string" Value="[INSTALLFOLDER]OxyPad.exe" KeyPath="yes" />
+            <RegistryValue Name="Path" Type="string" Value="[INSTALLFOLDER]" />
+          </RegistryKey>
+
+          <!-- How Windows opens a file with OxyPad, for "Open with". -->
+          <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\Applications\OxyPad.exe">
+            <RegistryValue Name="FriendlyAppName" Type="string" Value="OxyPad" />
+            <RegistryValue Key="DefaultIcon" Type="string" Value="[INSTALLFOLDER]OxyPad.exe,0" />
+            <RegistryValue Key="shell\open\command" Type="string" Value="&quot;[INSTALLFOLDER]OxyPad.exe&quot; &quot;%1&quot;" />
+          </RegistryKey>
+          <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\OxyPad.Document">
+            <RegistryValue Type="string" Value="Text document" />
+            <RegistryValue Key="DefaultIcon" Type="string" Value="[INSTALLFOLDER]OxyPad.exe,0" />
+            <RegistryValue Key="shell\open\command" Type="string" Value="&quot;[INSTALLFOLDER]OxyPad.exe&quot; &quot;%1&quot;" />
+          </RegistryKey>
+
+          <!-- Listed under "Open with" for these types; the default program
+               stays whatever it was. -->
+          <?foreach Extension in .txt;.log;.md;.markdown;.json;.jsonc;.xml;.yml;.yaml;.toml;.ini;.cfg;.conf;.properties;.env;.csv;.tsv;.sql;.html;.htm;.css;.scss;.js;.mjs;.cjs;.ts;.tsx;.jsx;.vue;.svelte;.py;.rb;.php;.java;.kt;.kts;.cs;.go;.rs;.c;.h;.cpp;.hpp;.cc;.swift;.lua;.sh;.bash;.zsh;.ps1;.psm1;.psd1;.bat;.cmd;.diff;.patch;.gitignore;.editorconfig;.dockerfile;.gradle;.cmake ?>
+          <RegistryValue Root="HKLM" Key="SOFTWARE\Classes\$(Extension)\OpenWithProgids" Name="OxyPad.Document" Type="string" Value="" />
+          <RegistryValue Root="HKLM" Key="SOFTWARE\Classes\Applications\OxyPad.exe\SupportedTypes" Name="$(Extension)" Type="string" Value="" />
+          <?endforeach?>
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="Main">
+      <ComponentRef Id="Executable" />
+      <ComponentRef Id="Registration" />
+    </Feature>
+  </Package>
+</Wix>

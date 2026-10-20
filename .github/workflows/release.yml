@@ -140,6 +140,29 @@ jobs:
           "$hash  $name.zip" | Out-File -Encoding ascii -NoNewline "dist/$name.zip.sha256"
           Remove-Item -Recurse "dist/$name"
 
+      - name: Install WiX
+        run: dotnet tool install --global wix --version 5.0.2
+
+      - name: Installer (MSI)
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          $name = "OxyPad-$env:VERSION-windows-${{ matrix.name }}.msi"
+          # MSI versions are numbers only: 0.2.0-beta.1 installs as 0.2.0.
+          $msiVersion = ($env:VERSION -split '[-+]')[0]
+          & "$env:USERPROFILE\.dotnet\tools\wix.exe" build packaging/windows/OxyPad.wxs `
+            -arch ${{ matrix.name }} `
+            -d "Version=$msiVersion" `
+            -d "ExeFile=target/${{ matrix.target }}/release/oxypad.exe" `
+            -d "IconFile=oxypad-icons/oxypad.ico" `
+            -d "LicenseFile=LICENSE" `
+            -o "dist/$name"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Remove-Item -ErrorAction SilentlyContinue "dist/*.wixpdb"
+          $hash = (Get-FileHash "dist/$name" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $name" | Out-File -Encoding ascii -NoNewline "dist/$name.sha256"
+
       - uses: actions/upload-artifact@v4
         with:
           name: oxypad-windows-${{ matrix.name }}
@@ -183,8 +206,8 @@ jobs:
             echo "|---|---|"
             echo "| Mac with Apple silicon (M1 or later) | **OxyPad-$VERSION-macos-apple-silicon.dmg** |"
             echo "| Mac with an Intel processor | **OxyPad-$VERSION-macos-intel.dmg** |"
-            echo "| Windows (most PCs) | **OxyPad-$VERSION-windows-x64.zip** |"
-            echo "| Windows on ARM (Snapdragon, …) | **OxyPad-$VERSION-windows-arm64.zip** |"
+            echo "| Windows (most PCs) | **OxyPad-$VERSION-windows-x64.msi** (installer) or **.zip** (portable) |"
+            echo "| Windows on ARM (Snapdragon, …) | **OxyPad-$VERSION-windows-arm64.msi** (installer) or **.zip** (portable) |"
             echo
             echo "**macOS:** open the DMG and drag OxyPad to Applications. Apple menu ▸ About This Mac"
             echo "shows *Chip* (Apple silicon) or *Processor* (Intel). Requires macOS 11 or later."
@@ -196,8 +219,10 @@ jobs:
               echo 'or run `xattr -dr com.apple.quarantine /Applications/OxyPad.app` in Terminal.'
             fi
             echo
-            echo "**Windows:** unzip and run OxyPad.exe; no installation needed. Windows SmartScreen may"
-            echo "warn the first time, as the app is not signed: choose **More info ▸ Run anyway**."
+            echo "**Windows:** the MSI installs OxyPad for all users, with a Start menu shortcut and an"
+            echo "entry under *Open with* for text and code files. The zip needs no installation: unzip it"
+            echo "and run OxyPad.exe. Windows SmartScreen may warn the first time, as OxyPad is not signed"
+            echo "yet: choose **More info ▸ Run anyway**."
             echo
             echo "**Code language pack:** Kotlin, C#, Scala, Swift, Ruby, Elixir, Zig and PHP highlighting comes"
             echo "in \`oxypad-code-languages-$VERSION-<platform>.zip\` (macOS: the universal one). Copy its folders"

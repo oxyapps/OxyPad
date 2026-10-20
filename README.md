@@ -75,7 +75,7 @@ The artwork lives in `oxypad-icons/`; each platform takes it from there.
 | Platform | How                                   | Icon source                          |
 | -------- | ------------------------------------- | ------------------------------------ |
 | macOS    | `scripts/bundle-macos.sh` → `target/release/bundle/OxyPad.app`; `scripts/build-dmg.sh apple-silicon\|intel` → `dist/*.dmg` | `png/oxypad-1024.png`, scaled into Apple's 824 px grid (`.icns` generated) |
-| Windows  | `cargo build --release` embeds it in `oxypad.exe` (`crates/app/build.rs`) | `oxypad.ico` |
+| Windows  | `cargo build --release` embeds it in `oxypad.exe` (`crates/app/build.rs`); the release workflow builds an MSI from `packaging/windows/OxyPad.wxs` with WiX v5 | `oxypad.ico` |
 | Linux    | `scripts/install-linux.sh` (binary, `.desktop`, hicolor icons into `~/.local`) | `png/`, `oxypad.svg` |
 
 The app id is `org.oxyapps.oxypad` everywhere (bundle identifier, Wayland/X11
@@ -103,8 +103,8 @@ To release:
 | ---- | --- |
 | `OxyPad-<version>-macos-apple-silicon.dmg` | Macs with M-series chips |
 | `OxyPad-<version>-macos-intel.dmg` | Intel Macs |
-| `OxyPad-<version>-windows-x64.zip` | Windows on x64 |
-| `OxyPad-<version>-windows-arm64.zip` | Windows on ARM |
+| `OxyPad-<version>-windows-x64.msi` / `.zip` | Windows on x64: installer / portable |
+| `OxyPad-<version>-windows-arm64.msi` / `.zip` | Windows on ARM: installer / portable |
 | `oxypad-code-languages-<version>-<platform>.zip` | the code language pack |
 
 Running the workflow by hand from the Actions tab builds the same files

@@ -29,7 +29,8 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   TRANSLATING.md).
 - An additional code language pack with Kotlin, C#, Scala, Swift, Ruby, Elixir, Zig and PHP
   highlighting, kept out of the app to keep it small.
-- Release builds: DMGs for Apple silicon and Intel Macs, and zips for Windows x64 and
-  ARM64.
+- Release builds: DMGs for Apple silicon and Intel Macs, and MSI installers and portable
+  zips for Windows x64 and ARM64. The installer adds a Start menu shortcut and lists
+  OxyPad under "Open with" for text and code files.
 
 [Unreleased]: https://github.com/oxyapps/OxyPad/commits/main
