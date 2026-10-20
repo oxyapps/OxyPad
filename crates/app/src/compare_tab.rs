@@ -10,8 +10,6 @@ use std::{ops::Range, rc::Rc};
 use gpui_kit::{
     component::{
         ActiveTheme, IconName, h_flex,
-        highlighter::SyntaxHighlighter,
-        input::Rope,
         scroll::ScrollableElement,
         v_flex,
     },
@@ -19,6 +17,8 @@ use gpui_kit::{
     *,
 };
 use oxypad_core::{Alignment, Cell, RowKind, align};
+
+use crate::syntax;
 
 const TAB_WIDTH: usize = 4;
 const DIVIDER_WIDTH: Pixels = px(5.);
@@ -108,12 +108,10 @@ fn syntax_by_line(
     cx: &App,
 ) -> Vec<Vec<(Range<usize>, HighlightStyle)>> {
     let mut per_line = vec![Vec::new(); lines.len()];
-    if language == "plaintext" || text.is_empty() {
+    if text.is_empty() {
         return per_line;
     }
-    let mut highlighter = SyntaxHighlighter::new(language);
-    highlighter.update(None, &Rope::from_str(text), None);
-    let spans = highlighter.styles(&(0..text.len()), &*cx.theme().highlight_theme);
+    let spans = syntax::highlight(text, language, cx);
 
     // Start offset of each line in `text`.
     let mut starts = Vec::with_capacity(lines.len());

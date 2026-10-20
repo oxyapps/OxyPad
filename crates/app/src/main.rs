@@ -14,10 +14,10 @@ mod assets;
 mod compare_tab;
 mod editor_tab;
 mod i18n;
-mod languages;
 mod log_tab;
 mod menus;
 mod preferences;
+mod syntax;
 mod themes;
 mod workspace;
 
@@ -67,7 +67,6 @@ fn main() {
         preferences::init(cx);
         i18n::init(cx);
         themes::init(cx);
-        languages::init(cx);
         actions::bind_keys(cx);
         let app_menu_bar = menus::install(cx);
         // Quitting goes through the workspace, which may ask about unsaved changes.

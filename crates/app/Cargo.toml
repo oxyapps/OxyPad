@@ -15,47 +15,15 @@ embed-resource = "3"
 [dependencies]
 anyhow.workspace = true
 dirs.workspace = true
-# Grammars embedded in the app. Large, less common ones (Kotlin, C#, Scala,
-# Swift, Ruby, Elixir, Zig, PHP) ship in the separate language pack instead;
-# see crates/language-pack.
-gpui-kit = { version = "=0.8.0", features = [
-    "tree-sitter-astro",
-    "tree-sitter-bash",
-    "tree-sitter-c",
-    "tree-sitter-cmake",
-    "tree-sitter-cpp",
-    "tree-sitter-css",
-    "tree-sitter-diff",
-    "tree-sitter-ejs",
-    "tree-sitter-erb",
-    "tree-sitter-go",
-    "tree-sitter-graphql",
-    "tree-sitter-html",
-    "tree-sitter-java",
-    "tree-sitter-javascript",
-    "tree-sitter-jsdoc",
-    "tree-sitter-lua",
-    "tree-sitter-make",
-    "tree-sitter-markdown",
-    "tree-sitter-proto",
-    "tree-sitter-python",
-    "tree-sitter-rust",
-    "tree-sitter-sql",
-    "tree-sitter-svelte",
-    "tree-sitter-toml",
-    "tree-sitter-tsx",
-    "tree-sitter-typescript",
-    "tree-sitter-yaml",
-] }
+gpui-kit = "=0.8.0"
 oxypad-core.workspace = true
 oxypad-session.workspace = true
+oxypad-syntax.workspace = true
 oxypad-tail.workspace = true
-libloading = "0.8"
+# The editor's text type, at the version gpui-kit uses, for its line index.
+ropey = { version = "=2.0.0-beta.1", default-features = false, features = ["metric_lines_lf"] }
 # The same i18n runtime as gpui-kit, so one locale switch covers both.
 rust-i18n = "4.2"
 serde.workspace = true
 serde_json.workspace = true
 sys-locale = "0.3"
-# Same versions gpui-component uses, to build grammars loaded at runtime.
-tree-sitter = "0.26"
-tree-sitter-language = "0.1"

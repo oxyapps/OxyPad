@@ -1,0 +1,14 @@
+[package]
+name = "oxypad-syntax"
+description = "Syntax highlighting and folding for OxyPad with Lexilla, the lexers of Scintilla and Notepad++."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+oxypad-core.workspace = true
+
+[build-dependencies]
+cc = "1"

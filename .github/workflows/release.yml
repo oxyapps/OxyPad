@@ -175,14 +175,9 @@ jobs:
           path: dist/*-portable.zip*
           if-no-files-found: error
 
-  language-pack:
-    name: Code language pack
-    needs: version
-    uses: ./.github/workflows/language-pack.yml
-
   publish:
     name: Publish release
-    needs: [version, macos, windows, language-pack]
+    needs: [version, macos, windows]
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     env:
@@ -229,10 +224,6 @@ jobs:
             echo "entry under *Open with* for text and code files. The portable zip needs no installation: unzip it"
             echo "and run OxyPad.exe. Windows SmartScreen may warn the first time, as OxyPad is not signed"
             echo "yet: choose **More info ▸ Run anyway**."
-            echo
-            echo "**Code language pack:** Kotlin, C#, Scala, Swift, Ruby, Elixir, Zig and PHP highlighting comes"
-            echo "in \`oxypad-code-languages-$VERSION-<platform>.zip\` (macOS: the universal one). Copy its folders"
-            echo "into the folder shown in OxyPad's Settings ▸ Code Languages and choose Reload Languages."
           } >> notes.md
           ls -l dist
 

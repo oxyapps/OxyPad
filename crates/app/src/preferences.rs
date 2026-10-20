@@ -8,19 +8,14 @@ use gpui_kit::{
         ActiveTheme, IconName, Theme, ThemeMode, ThemeRegistry,
         Sizable,
         button::Button,
-        h_flex,
-        setting::{NumberFieldOptions, SelectIndex, SettingField, SettingGroup, SettingItem, SettingPage, Settings},
+        setting::{NumberFieldOptions, SettingField, SettingGroup, SettingItem, SettingPage, Settings},
         v_flex,
     },
     *,
 };
 use oxypad_session::{LineEndingPreference, Preferences, ThemePreference, data_dir};
 
-use crate::{
-    i18n,
-    languages::{self, InstallStatus},
-    themes,
-};
+use crate::{i18n, themes};
 
 /// App-wide preferences. Observers of this global (the workspace) re-apply
 /// them to open tabs when they change.
@@ -30,7 +25,6 @@ pub struct AppPreferences {
     /// The theme's own monospace font, used when the font is "Automatic".
     default_mono_font: SharedString,
     window: Option<AnyWindowHandle>,
-    view: Option<WeakEntity<SettingsView>>,
 }
 
 impl Global for AppPreferences {}
@@ -40,7 +34,7 @@ pub fn init(cx: &mut App) {
     let dir = data_dir().ok();
     let values = dir.as_deref().map(Preferences::load).unwrap_or_default();
     let default_mono_font = cx.theme().mono_font_family.clone();
-    cx.set_global(AppPreferences { values, dir, default_mono_font, window: None, view: None });
+    cx.set_global(AppPreferences { values, dir, default_mono_font, window: None });
 }
 
 pub fn get(cx: &App) -> &Preferences {
@@ -97,28 +91,12 @@ pub fn apply_appearance(window: Option<&mut Window>, cx: &mut App) {
     theme.mono_font_size = px(preferences.font_size);
 }
 
-/// Pages of the Settings window, in sidebar order.
-#[derive(Clone, Copy)]
-pub enum Page {
-    General,
-    CodeLanguages = 5,
-}
-
 /// Opens the Settings window, or brings it to the front.
 pub fn open_window(cx: &mut App) {
-    open_window_at(None, cx);
-}
-
-/// Opens the Settings window on `page`, or brings it to the front, showing
-/// `page` when given.
-pub fn open_window_at(page: Option<Page>, cx: &mut App) {
     let state = cx.global::<AppPreferences>();
-    if let (Some(handle), Some(view)) = (state.window, state.view.clone())
+    if let Some(handle) = state.window
         && handle.update(cx, |_, window, _| window.activate_window()).is_ok()
     {
-        if let Some(page) = page {
-            let _ = view.update(cx, |view, cx| view.show_page(page, cx));
-        }
         return;
     }
     let options = WindowOptions {
@@ -127,13 +105,8 @@ pub fn open_window_at(page: Option<Page>, cx: &mut App) {
         window_min_size: Some(size(px(640.), px(420.))),
         ..Default::default()
     };
-    let page = page.unwrap_or(Page::General);
-    match gpui_kit::open_window(options, cx, |window, cx| cx.new(|cx| SettingsView::new(page, window, cx))) {
-        Ok((handle, view)) => {
-            let state = cx.global_mut::<AppPreferences>();
-            state.window = Some(handle);
-            state.view = Some(view.downgrade());
-        }
+    match gpui_kit::open_window(options, cx, |window, cx| cx.new(|cx| SettingsView::new(window, cx))) {
+        Ok((handle, _)) => cx.global_mut::<AppPreferences>().window = Some(handle),
         Err(err) => eprintln!("oxypad: could not open the settings: {err:#}"),
     }
 }
@@ -141,22 +114,11 @@ pub fn open_window_at(page: Option<Page>, cx: &mut App) {
 struct SettingsView {
     /// Installed monospace fonts, gathered once.
     fonts: Vec<(SharedString, SharedString)>,
-    /// Page shown when the Settings component (re)starts.
-    page: Page,
-    /// Part of the Settings component's id: bumping it starts the component
-    /// afresh, on `page`, since it only takes a page when it starts.
-    generation: usize,
 }
 
 impl SettingsView {
-    fn new(page: Page, _: &mut Window, cx: &mut Context<Self>) -> Self {
-        Self { fonts: monospace_fonts(cx), page, generation: 0 }
-    }
-
-    fn show_page(&mut self, page: Page, cx: &mut Context<Self>) {
-        self.page = page;
-        self.generation += 1;
-        cx.notify();
+    fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
+        Self { fonts: monospace_fonts(cx) }
     }
 }
 
@@ -223,31 +185,6 @@ fn section(title: impl Into<SharedString>) -> SettingGroup {
         })
         .keywords([title]),
     )
-}
-
-/// One line per language of the pack, with whether it is installed.
-fn render_pack_status(cx: &App) -> AnyElement {
-    let installed = languages::installed(cx);
-    let muted = cx.theme().muted_foreground;
-    let (success, danger) = (cx.theme().success, cx.theme().danger);
-    v_flex()
-        .w_full()
-        .gap_1()
-        .children(languages::PACK_LANGUAGES.iter().map(|(name, display)| {
-            let status = installed.iter().find(|language| language.name.as_ref() == *name).map(|language| &language.status);
-            let (label, color): (SharedString, Hsla) = match status {
-                Some(InstallStatus::Installed) => (t!("settings.installed").into(), success),
-                Some(InstallStatus::Failed(err)) => (t!("settings.not_loaded", error = err).into(), danger),
-                None => (t!("settings.not_installed").into(), muted),
-            };
-            h_flex()
-                .w_full()
-                .justify_between()
-                .gap_4()
-                .child(*display)
-                .child(div().text_sm().text_color(color).truncate().child(label))
-        }))
-        .into_any_element()
 }
 
 fn options<const N: usize>(pairs: [(&'static str, Cow<'static, str>); N]) -> Vec<(SharedString, SharedString)> {
@@ -440,74 +377,12 @@ impl Render for SettingsView {
                 ),
         ]);
 
-        let languages_page = SettingPage::new(t!("settings.code_languages")).icon(IconName::BookOpen).groups([
-            section(t!("settings.language_pack"))
-                .item(SettingItem::render(|_, _, cx| render_pack_status(cx)).keywords(["kotlin", "swift", "ruby"]))
-                .item(
-                    SettingItem::new(
-                        t!("settings.download"),
-                        SettingField::render(|options, _, _| {
-                            Button::new("open-releases")
-                                .outline()
-                                .with_size(options.size())
-                                .label(t!("settings.open_releases"))
-                                .on_click(|_, _, cx| cx.open_url(languages::RELEASES_URL))
-                        }),
-                    )
-                    .description(t!("settings.download_detail").to_string()),
-                )
-                .item(
-                    SettingItem::new(
-                        t!("settings.languages_folder"),
-                        SettingField::render(|options, _, _| {
-                            Button::new("open-languages-folder")
-                                .outline()
-                                .with_size(options.size())
-                                .label(t!("settings.open_folder"))
-                                .on_click(|_, _, cx| {
-                                    if let Some(dir) = languages::dir(cx) {
-                                        let _ = std::fs::create_dir_all(&dir);
-                                        cx.open_with_system(&dir);
-                                    }
-                                })
-                        }),
-                    )
-                    .description(folder_description(languages::dir(cx))),
-                )
-                .item(
-                    SettingItem::new(
-                        t!("settings.reload"),
-                        SettingField::render(|options, _, _| {
-                            Button::new("reload-languages")
-                                .outline()
-                                .with_size(options.size())
-                                .label(t!("settings.reload_languages"))
-                                .on_click(|_, _, cx| {
-                                    languages::reload(cx);
-                                    cx.refresh_windows();
-                                })
-                        }),
-                    )
-                    .description(t!("settings.reload_detail").to_string()),
-                )
-                .footer(|_, _| t!("settings.pack_footer").to_string()),
-        ]);
-
         v_flex()
             .size_full()
             .bg(cx.theme().background)
             .text_color(cx.theme().foreground)
             .child(
-                Settings::new(SharedString::from(format!("oxypad-settings-{}", self.generation)))
-                    .default_selected_index(SelectIndex { page_ix: self.page as usize, group_ix: None })
-                    .pages([
-                general,
-                editor,
-                appearance,
-                new_documents,
-                logs,
-                languages_page,
-            ]),
+                Settings::new("oxypad-settings").pages([general, editor, appearance, new_documents, logs]),
             )
     }
 }

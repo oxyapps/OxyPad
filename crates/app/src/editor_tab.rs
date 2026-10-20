@@ -8,7 +8,7 @@ use gpui_kit::{
 use oxypad_core::{Document, ExternalChange};
 use oxypad_session::{Preferences, TabKind, TabSnapshot};
 
-use crate::{languages, preferences};
+use crate::{preferences, syntax};
 
 fn tab_size(preferences: &Preferences) -> TabSize {
     TabSize { tab_size: preferences.tab_width as usize, hard_tabs: !preferences.insert_spaces }
@@ -38,10 +38,12 @@ impl EditorTab {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        let language = languages::detect(document.path(), cx);
+        let language = syntax::detect(document.path());
         let preferences = preferences::get(cx).clone();
         let editor = cx.new(|cx| {
-            EditorState::new(window, cx)
+            let mut state = EditorState::new(window, cx);
+            state.set_highlighter_factory(syntax::factory(), cx);
+            state
                 .language(language)
                 .line_number(preferences.show_line_numbers)
                 .indent_guides(preferences.show_indent_guides)
@@ -138,10 +140,9 @@ impl EditorTab {
         });
     }
 
-    /// Re-detects the language and rebuilds the highlighter, after a Save As
-    /// or when a language from the language pack was installed.
+    /// Re-detects the language and rebuilds the highlighter, after a Save As.
     pub fn refresh_language(&mut self, cx: &mut Context<Self>) {
-        let language = languages::detect(self.document.path(), cx);
+        let language = syntax::detect(self.document.path());
         self.editor.update(cx, |state, cx| state.set_highlighter(language, cx));
         // The status bar shows the language.
         cx.notify();

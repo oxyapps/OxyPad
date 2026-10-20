@@ -1,9 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/core", "crates/tail", "crates/session", "crates/app", "crates/language-pack"]
-# The language pack tool compiles extra grammars; build it only on request
-# (`cargo run -p oxypad-language-pack`).
-default-members = ["crates/core", "crates/tail", "crates/session", "crates/app"]
+members = ["crates/core", "crates/tail", "crates/session", "crates/syntax", "crates/app"]
 
 [workspace.package]
 version = "0.1.0"
@@ -14,6 +11,7 @@ license = "Apache-2.0"
 oxypad-core = { path = "crates/core" }
 oxypad-tail = { path = "crates/tail" }
 oxypad-session = { path = "crates/session" }
+oxypad-syntax = { path = "crates/syntax" }
 
 anyhow = "1"
 chardetng = "0.1"

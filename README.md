@@ -3,7 +3,8 @@
 A fast, native, cross-platform text editor written in Rust, in the spirit of
 Notepad++ and MacPad++. Prototype stage.
 
-- Tabs, syntax highlighting (Tree-sitter, 30+ languages), find/replace
+- Tabs, syntax highlighting and folding for 40 languages with Lexilla, the
+  lexers of Scintilla and Notepad++, find/replace
 - Toolbar whose buttons enable themselves for the active tab
 - Side-by-side comparison of two open tabs: 50/50 columns with a draggable
   divider (double-click resets it), both columns scroll together, each scrolls
@@ -38,26 +39,19 @@ cargo run --release -p oxypad -- file.rs -f /var/log/system.log
 Set `OXYPAD_DATA_DIR` to keep the session somewhere other than the per-user
 data directory (useful while developing).
 
-## Code language pack
+## Syntax highlighting
 
-The most common languages are built in. Kotlin, C#, Scala, Swift, Ruby,
-Elixir, Zig and PHP have large grammars and ship separately, keeping the app
-about 22 MB smaller. Opening one of those files shows a toast with a button to
-the [releases page](https://github.com/oxyapps/OxyPad/releases); copy the
-pack's folders into the code languages folder (Settings › Code Languages › Open Folder)
-and choose Reload Languages.
+Highlighting and folding come from [Lexilla](https://www.scintilla.org/Lexilla.html),
+the lexers behind Scintilla, SciTE and Notepad++ (`crates/syntax`). A lexer keeps
+one style byte per byte of text and a fold level per line, so a 1 MB file costs
+about 1 MB to highlight. Lexing is incremental: after an edit it restarts at the
+edited line and stops once its results match the previous ones. Files over 2 MB
+are lexed only as far as they have been shown.
 
-Build the pack for the current platform with:
-
-```sh
-cargo run --release -p oxypad-language-pack        # → target/language-pack/
-```
-
-`.github/workflows/language-pack.yml` builds it for macOS (universal), Linux
-(x86_64, aarch64) and Windows and attaches the zips to each published release.
-Each language folder holds `language.json` (name, extensions, library,
-symbol), the grammar as a shared library and its highlight queries; a folder
-with this layout for any other Tree-sitter grammar works too.
+The keyword lists come from SciTE's `.properties` files
+(`crates/syntax/scripts/import-scite-keywords.py` writes `src/keywords.rs`); the
+table of languages, with the lexer, keywords and colors of each, is
+`crates/syntax/src/languages.rs`.
 
 ## Themes
 
@@ -107,7 +101,6 @@ To release:
 | `OxyPad-<version>-windows-x64-portable.zip` | Windows on x64, no installation |
 | `OxyPad-<version>-windows-arm64.msi` | Windows on ARM, installer |
 | `OxyPad-<version>-windows-arm64-portable.zip` | Windows on ARM, no installation |
-| `oxypad-code-languages-<version>-<platform>.zip` | the code language pack |
 
 Running the workflow by hand from the Actions tab builds the same files
 without publishing them. The macOS DMGs are signed with a Developer ID and
@@ -139,8 +132,16 @@ crates/
   core/     document model: encodings, line endings, atomic saves, language detection
   tail/     log follower (truncation/rotation) and log-level classification
   session/  session and unsaved-text backups
+  syntax/   syntax highlighting and folding with Lexilla (vendored C++ in vendor/)
   app/      the GPUI application (gpui-kit)
 ```
 
-`core`, `tail` and `session` do not depend on the UI and are unit tested
-(`cargo test --workspace`).
+`core`, `tail`, `session` and `syntax` do not depend on the UI and are unit
+tested (`cargo test --workspace`).
+
+## License
+
+Apache-2.0. `crates/syntax/vendor` holds Lexilla 5.5.3 and three headers of
+Scintilla 5.6.6, by Neil Hodgson, under their own permissive license
+(`crates/syntax/vendor/lexilla/License.txt`); the keyword lists come from
+SciTE, under the same license.

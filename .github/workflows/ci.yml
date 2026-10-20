@@ -1,6 +1,7 @@
 # Runs the tests of the platform-independent crates (documents, sessions,
-# log following) on every platform OxyPad targets, so platform-specific
-# behavior such as Windows file sharing is checked where it applies.
+# log following, syntax highlighting) on every platform OxyPad targets, so
+# platform-specific behavior such as Windows file sharing is checked where it
+# applies, and Lexilla's C++ builds with each platform's compiler.
 name: CI
 
 on:
@@ -23,6 +24,6 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - name: Test
-        run: cargo test -p oxypad-core -p oxypad-session -p oxypad-tail
+        run: cargo test -p oxypad-core -p oxypad-session -p oxypad-tail -p oxypad-syntax
       - name: Clippy
-        run: cargo clippy -p oxypad-core -p oxypad-session -p oxypad-tail --all-targets -- -D warnings
+        run: cargo clippy -p oxypad-core -p oxypad-session -p oxypad-tail -p oxypad-syntax --all-targets -- -D warnings

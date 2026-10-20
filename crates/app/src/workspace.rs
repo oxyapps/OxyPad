@@ -1,5 +1,4 @@
 use std::{
-    collections::HashSet,
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
     time::Duration,
@@ -28,7 +27,6 @@ use crate::{
     actions::*,
     compare_tab::{CompareSource, CompareTab},
     editor_tab::EditorTab,
-    languages::{self, Languages},
     log_tab::{LogStatus, LogTab},
     preferences::{self, AppPreferences},
 };
@@ -139,8 +137,6 @@ pub struct Workspace {
     window_title: SharedString,
     /// The user agreed to quit without saving; closing must not ask again.
     quit_confirmed: bool,
-    /// Languages the language pack was already suggested for.
-    pack_suggested: HashSet<SharedString>,
     /// A file-changed-on-disk question is on screen.
     asking_external_change: bool,
     _autosave: Task<()>,
@@ -165,7 +161,6 @@ impl Workspace {
             focus_handle: cx.focus_handle(),
             window_title: SharedString::default(),
             quit_confirmed: false,
-            pack_suggested: HashSet::new(),
             asking_external_change: false,
             _autosave: Task::ready(()),
             _subscriptions: Vec::new(),
@@ -228,14 +223,6 @@ impl Workspace {
         }));
         this._subscriptions.push(cx.observe_global_in::<AppPreferences>(window, |this, window, cx| {
             this.apply_preferences(window, cx);
-        }));
-        // Languages installed from the pack: re-highlight open files.
-        this._subscriptions.push(cx.observe_global::<Languages>(|this, cx| {
-            for tab in &this.tabs {
-                if let TabView::Editor(tab) = tab {
-                    tab.update(cx, |tab, cx| tab.refresh_language(cx));
-                }
-            }
         }));
 
         let active = this.tabs[this.active].clone();
@@ -368,45 +355,6 @@ impl Workspace {
             self.tabs.remove(self.active);
         }
         self.activate(self.tabs.len() - 1, window, cx);
-        if !follow {
-            self.suggest_language_pack(&path, window, cx);
-        }
-    }
-
-    /// Tells the user, once per language and session, when a file's language
-    /// needs the additional language pack.
-    fn suggest_language_pack(&mut self, path: &Path, window: &mut Window, cx: &mut Context<Self>) {
-        let language = languages::detect(Some(path), cx);
-        if languages::is_available(&language)
-            || !languages::is_in_pack(&language)
-            || !self.pack_suggested.insert(language.clone())
-        {
-            return;
-        }
-        let name = languages::display_name(&language);
-        // The button sits under the text: Settings › Code Languages explains
-        // how to get and install the pack.
-        let notification = Notification::info(t!("notification.in_language_pack"))
-            .title(t!("notification.no_highlighting", name = name).to_string())
-            // Shown once per language, with something to do: stays until closed.
-            .autohide(false)
-            .content(|_, _, cx| {
-                let notification = cx.entity().downgrade();
-                h_flex()
-                    .pt_2()
-                    .child(
-                        Button::new("show-code-languages")
-                            .primary()
-                            .small()
-                            .label(t!("notification.show_code_languages"))
-                            .on_click(move |_, window, cx| {
-                                let _ = notification.update(cx, |notification, cx| notification.dismiss(window, cx));
-                                preferences::open_window_at(Some(preferences::Page::CodeLanguages), cx);
-                            }),
-                    )
-                    .into_any_element()
-            });
-        show_notification(window, cx, notification);
     }
 
     fn activate(&mut self, ix: usize, window: &mut Window, cx: &mut Context<Self>) {
