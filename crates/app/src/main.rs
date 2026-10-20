@@ -21,6 +21,7 @@ mod menus;
 mod preferences;
 mod print;
 mod syntax;
+mod terminal;
 mod themes;
 mod windows;
 mod workspace;

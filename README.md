@@ -7,8 +7,10 @@ Notepad++ and MacPad++. Prototype stage.
   lexers of Scintilla and Notepad++, find/replace
 - Toolbar whose buttons enable themselves for the active tab
 - Tab menu (right click): close, pin, rename, read-only, show in Finder/Explorer,
-  copy the folder, name or full path, six tab colors, move to start/end, save;
-  drag tabs to reorder them
+  open the folder in a terminal (chosen in Settings: Terminal, iTerm, Warp, Ghostty;
+  Windows Terminal, PowerShell, Command Prompt; the usual Linux ones; or your own
+  command), copy the folder, name or full path, six tab colors, move to start/end, save;
+  drag tabs to reorder them; double-click the free space of the tab bar for a new tab
 - Several windows (Mod-Shift-N, or Move to Window from a tab's menu), all
   restored by the session
 - Printing with syntax colors (Mod-P), through the system's print dialog

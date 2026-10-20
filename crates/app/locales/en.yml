@@ -88,6 +88,8 @@ tab_menu:
   magenta: Magenta
   move_to_start: Move to Start
   move_to_end: Move to End
+  open_terminal: Open in Terminal
+  terminal_failed: "Could not open the terminal: %{error}"
   move_to_new_window: Move to New Window
   move_to_window: Move to Window
   new_window: New Window
@@ -219,6 +221,14 @@ settings:
   tail: Tail
   color_levels: Highlight log lines
   color_levels_detail: Colors lines by their level and marks your own highlights.
+  terminal: Terminal
+  terminal_app: Open folders in
+  terminal_auto: Automatic
+  terminal_auto_named: Automatic (%{name})
+  terminal_custom: Custom command
+  terminal_command: Custom command
+  terminal_command_detail: "Used when Custom command is chosen. {dir} is the folder, e.g. %{example}"
+  terminal_footer: Open in Terminal, in a tab's menu, opens the folder of its file.
   log_highlighting: Colors and keywords
   log_highlighting_detail: The color and the words of each level, and text to highlight.
   configure: Configure…

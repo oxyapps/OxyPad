@@ -31,6 +31,12 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   colors, move it to the start or end, and save it when it has unsaved changes. Pinned
   tabs, colors and read-only tabs are kept in the session. Tabs can be dragged to a
   new place in the bar.
+- Open in Terminal, in a tab's menu, opens the folder of its file in the terminal chosen
+  in Settings ▸ General: Terminal, iTerm, Warp or Ghostty on macOS; Windows Terminal,
+  PowerShell 7, Windows PowerShell or Command Prompt on Windows; GNOME Terminal, Konsole,
+  kitty and others on Linux (those installed are listed); or a command of your own, with
+  `{dir}` for the folder.
+- A double click on the free space of the tab bar opens a new tab.
 - Several windows: File ▸ New Window (Mod-Shift-N), and Move to Window in a tab's
   menu, to a new window or one already open, which takes the tab with its unsaved text
   (moving a window's last tab closes that window). The session restores every window.

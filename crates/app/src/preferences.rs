@@ -15,7 +15,7 @@ use gpui_kit::{
 };
 use oxypad_session::{LineEndingPreference, Preferences, ThemePreference, data_dir};
 
-use crate::{i18n, log_highlight, themes};
+use crate::{i18n, log_highlight, terminal, themes};
 
 /// App-wide preferences. Observers of this global (the workspace) re-apply
 /// them to open tabs when they change.
@@ -111,15 +111,43 @@ pub fn open_window(cx: &mut App) {
     }
 }
 
+/// A custom terminal command, as Settings shows it.
+const TERMINAL_EXAMPLE: &str = if cfg!(target_os = "windows") {
+    "wt.exe -d {dir}"
+} else if cfg!(target_os = "macos") {
+    "open -a Terminal {dir}"
+} else {
+    "gnome-terminal --working-directory={dir}"
+};
+
 struct SettingsView {
     /// Installed monospace fonts, gathered once.
     fonts: Vec<(SharedString, SharedString)>,
+    /// The terminal choices: automatic, those installed, a custom command.
+    terminals: Vec<(SharedString, SharedString)>,
 }
 
 impl SettingsView {
     fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
-        Self { fonts: monospace_fonts(cx) }
+        Self { fonts: monospace_fonts(cx), terminals: terminal_choices(cx) }
     }
+}
+
+fn terminal_choices(cx: &App) -> Vec<(SharedString, SharedString)> {
+    let installed = terminal::installed();
+    let automatic = match installed.first() {
+        Some(preset) => t!("settings.terminal_auto_named", name = preset.name).to_string(),
+        None => t!("settings.terminal_auto").to_string(),
+    };
+    let mut choices = vec![(SharedString::default(), automatic.into())];
+    choices.extend(installed.iter().map(|preset| (preset.id.into(), preset.name.into())));
+    // A chosen terminal stays listed even if it was uninstalled since.
+    let current = &get(cx).terminal;
+    if !current.is_empty() && current != terminal::CUSTOM && !choices.iter().any(|(id, _)| id == current) {
+        choices.push((current.clone().into(), current.clone().into()));
+    }
+    choices.push((terminal::CUSTOM.into(), t!("settings.terminal_custom").into()));
+    choices
 }
 
 /// Installed font families that look monospaced by name. The text system
@@ -241,6 +269,26 @@ impl Render for SettingsView {
                         .description(t!("settings.remember_tabs_detail").to_string()),
                 )
                 .footer(|_, _| t!("settings.session_footer").to_string()),
+            section(t!("settings.terminal"))
+                .item(SettingItem::new(
+                    t!("settings.terminal_app"),
+                    SettingField::dropdown(
+                        self.terminals.clone(),
+                        |cx| get(cx).terminal.clone().into(),
+                        |value, cx| update(cx, |p| p.terminal = value.to_string()),
+                    ),
+                ))
+                .item(
+                    SettingItem::new(
+                        t!("settings.terminal_command"),
+                        SettingField::input(
+                            |cx| get(cx).terminal_command.clone().into(),
+                            |value, cx| update(cx, |p| p.terminal_command = value.to_string()),
+                        ),
+                    )
+                    .description(t!("settings.terminal_command_detail", example = TERMINAL_EXAMPLE).to_string()),
+                )
+                .footer(|_, _| t!("settings.terminal_footer").to_string()),
         ]);
 
         let editor = SettingPage::new(t!("settings.editor")).icon(IconName::SquareTerminal).groups([

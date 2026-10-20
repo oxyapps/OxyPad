@@ -84,6 +84,8 @@ tab_menu:
   magenta: Magenta
   move_to_start: Mover para o Início
   move_to_end: Mover para o Fim
+  open_terminal: Abrir no Terminal
+  terminal_failed: "Não foi possível abrir o terminal: %{error}"
   move_to_new_window: Mover para Nova Janela
   move_to_window: Mover para Janela
   new_window: Nova Janela
@@ -214,6 +216,14 @@ settings:
   tail: Tail
   color_levels: Realçar linhas do log
   color_levels_detail: Colore as linhas pelo nível e marca os seus próprios realces.
+  terminal: Terminal
+  terminal_app: Abrir pastas em
+  terminal_auto: Automático
+  terminal_auto_named: Automático (%{name})
+  terminal_custom: Comando personalizado
+  terminal_command: Comando personalizado
+  terminal_command_detail: "Usado quando Comando personalizado está escolhido. {dir} é a pasta, por exemplo %{example}"
+  terminal_footer: Abrir no Terminal, no menu de uma aba, abre a pasta do arquivo dela.
   log_highlighting: Cores e palavras-chave
   log_highlighting_detail: A cor e as palavras de cada nível, e textos para realçar.
   configure: Configurar…

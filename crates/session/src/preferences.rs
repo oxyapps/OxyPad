@@ -147,6 +147,11 @@ pub struct Preferences {
     /// Word wrap for tabs opened from now on.
     pub wrap_lines: bool,
     pub restore_session: bool,
+    /// The terminal that opens a file's folder: a preset's id, "custom" for
+    /// `terminal_command`, or empty for the system's usual one.
+    pub terminal: String,
+    /// The command line of a custom terminal; `{dir}` is the folder.
+    pub terminal_command: String,
     pub new_line_ending: LineEndingPreference,
     pub new_utf8_bom: bool,
     pub color_log_levels: bool,
@@ -171,6 +176,8 @@ impl Default for Preferences {
             show_indent_guides: true,
             wrap_lines: false,
             restore_session: true,
+            terminal: String::new(),
+            terminal_command: String::new(),
             new_line_ending: LineEndingPreference::Native,
             new_utf8_bom: false,
             color_log_levels: true,

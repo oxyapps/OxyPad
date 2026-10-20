@@ -12,6 +12,7 @@ use gpui_kit::{
         h_flex,
         input::{Input, InputEvent, InputState},
         menu::{ContextMenuExt, PopupMenu, PopupMenuItem},
+        notification::Notification,
         tab::{Tab, TabBar},
     },
     prelude::FluentBuilder,
@@ -20,7 +21,7 @@ use gpui_kit::{
 use oxypad_session::TabColor;
 
 use super::{TabView, Workspace};
-use crate::{editor_tab::EditorTab, windows};
+use crate::{editor_tab::EditorTab, preferences, terminal, windows};
 
 /// What the workspace keeps about a tab besides its content.
 #[derive(Clone, Copy, Default)]
@@ -255,6 +256,16 @@ impl Workspace {
         }
     }
 
+    /// Opens the folder of tab `id`'s file in the terminal chosen in Settings.
+    fn open_terminal(&mut self, id: u64, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(dir) = self.tab_path(id, cx).and_then(|path| path.parent().map(PathBuf::from)) else { return };
+        let preferences = preferences::get(cx);
+        if let Err(err) = terminal::open(&dir, &preferences.terminal, &preferences.terminal_command) {
+            let message = t!("tab_menu.terminal_failed", error = format!("{err:#}")).to_string();
+            super::show_notification(window, cx, Notification::error(message));
+        }
+    }
+
     fn copy_path(&self, id: u64, what: CopyWhat, cx: &mut Context<Self>) {
         let Some(path) = self.tab_path(id, cx) else { return };
         let text = match what {
@@ -339,6 +350,12 @@ impl Workspace {
                             .drag_over::<DraggedTab>(|style, _, _, cx| style.bg(cx.theme().drop_target))
                             .on_drop(cx.listener(|this, drag: &DraggedTab, _, cx| {
                                 this.move_tab(drag.id, usize::MAX, cx)
+                            }))
+                            // A double click on the free space opens a new tab, like the + button.
+                            .on_click(cx.listener(|this, event: &ClickEvent, window, cx| {
+                                if event.click_count() == 2 {
+                                    this.new_untitled(window, cx);
+                                }
                             })),
                     )
                     .suffix(
@@ -434,6 +451,11 @@ fn tab_menu(
                     cx.reveal_path(&path);
                 }
             })))
+            .item(
+                PopupMenuItem::new(t!("tab_menu.open_terminal"))
+                    .icon(IconName::SquareTerminal)
+                    .on_click(run(Workspace::open_terminal)),
+            )
             .submenu_with_icon(Some(Lucide::ClipboardCopy.into()), t!("tab_menu.copy"), window, cx, {
                 let workspace = workspace.clone();
                 move |menu, _, _| {
