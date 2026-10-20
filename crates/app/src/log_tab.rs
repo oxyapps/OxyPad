@@ -76,7 +76,9 @@ impl LogTab {
         let levels = editor.update(cx, |state, cx| {
             state.create_decorations_collection(level_decorations(&text, 0, cx), cx)
         });
-        cx.observe(&editor, |_, _, cx| cx.notify()).detach();
+        // No observer on the editor: it notifies on every cursor blink, and
+        // what the status bar shows (line count, follow state) changes only
+        // through this tab, which notifies itself.
 
         let mut this = Self {
             id,

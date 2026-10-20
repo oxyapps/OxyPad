@@ -23,6 +23,8 @@ pub struct EditorTab {
     editor: Entity<EditorState>,
     dirty: bool,
     soft_wrap: bool,
+    /// The cursor the status bar last showed.
+    cursor: Position,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -49,15 +51,25 @@ impl EditorTab {
                 .default_value(text)
         });
 
+        // The workspace re-renders and marks the session changed whenever
+        // this tab notifies, so notify only for edits and cursor moves.
         let _subscriptions = vec![
+            // Every edit changes the unsaved text the session keeps.
             cx.subscribe(&editor, |this, _, event: &InputEvent, cx| {
-                if matches!(event, InputEvent::Change) && !this.dirty {
+                if matches!(event, InputEvent::Change) {
                     this.dirty = true;
                     cx.notify();
                 }
             }),
-            // Cursor moves change the status bar.
-            cx.observe(&editor, |_, _, cx| cx.notify()),
+            // Cursor moves change the status bar. The editor also notifies on
+            // every cursor blink, which changes nothing here.
+            cx.observe(&editor, |this, editor, cx| {
+                let cursor = editor.read(cx).cursor_position();
+                if cursor != this.cursor {
+                    this.cursor = cursor;
+                    cx.notify();
+                }
+            }),
         ];
 
         Self {
@@ -67,6 +79,7 @@ impl EditorTab {
             editor,
             dirty,
             soft_wrap: preferences.wrap_lines,
+            cursor: Position::default(),
             _subscriptions,
         }
     }
@@ -130,6 +143,8 @@ impl EditorTab {
     pub fn refresh_language(&mut self, cx: &mut Context<Self>) {
         let language = languages::detect(self.document.path(), cx);
         self.editor.update(cx, |state, cx| state.set_highlighter(language, cx));
+        // The status bar shows the language.
+        cx.notify();
     }
 
     pub fn toggle_soft_wrap(&mut self, window: &mut Window, cx: &mut Context<Self>) {
