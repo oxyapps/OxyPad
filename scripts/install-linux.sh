@@ -17,6 +17,11 @@ for size in 16 24 32 48 64 128 256 512; do
 done
 install -Dm644 oxypad-icons/oxypad.svg "$PREFIX/share/icons/hicolor/scalable/apps/$APP_ID.svg"
 
-command -v update-desktop-database >/dev/null && update-desktop-database "$PREFIX/share/applications" || true
-command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -q "$PREFIX/share/icons/hicolor" || true
+# Refreshes the desktop's caches where these tools exist; failing is harmless.
+if command -v update-desktop-database >/dev/null; then
+    update-desktop-database "$PREFIX/share/applications" || true
+fi
+if command -v gtk-update-icon-cache >/dev/null; then
+    gtk-update-icon-cache -q "$PREFIX/share/icons/hicolor" || true
+fi
 echo "Installed OxyPad to $PREFIX"
