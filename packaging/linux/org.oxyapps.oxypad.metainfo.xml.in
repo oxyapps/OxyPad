@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AppStream metadata, shown by software centers. package.sh fills in
+     @VERSION@ and @DATE@. -->
+<component type="desktop-application">
+  <id>org.oxyapps.oxypad</id>
+  <name>OxyPad</name>
+  <summary>Fast, native text editor with tabs, sessions and a tail -f log mode</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>Apache-2.0</project_license>
+  <developer id="org.oxyapps">
+    <name>OxyApps</name>
+  </developer>
+  <description>
+    <p>
+      OxyPad is a light text editor in the spirit of Notepad++: tabs, syntax
+      highlighting and folding for 40 languages, find and replace, and a
+      session that keeps open tabs and unsaved changes across restarts.
+    </p>
+    <p>
+      Its log mode follows a file like tail -F: read-only, it keeps up with
+      new lines, survives truncation and log rotation, and colors errors and
+      warnings. It also compares two open tabs side by side.
+    </p>
+  </description>
+  <launchable type="desktop-id">org.oxyapps.oxypad.desktop</launchable>
+  <url type="homepage">https://github.com/oxyapps/OxyPad</url>
+  <url type="bugtracker">https://github.com/oxyapps/OxyPad/issues</url>
+  <categories>
+    <category>Utility</category>
+    <category>TextEditor</category>
+    <category>Development</category>
+  </categories>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="@VERSION@" date="@DATE@" />
+  </releases>
+</component>

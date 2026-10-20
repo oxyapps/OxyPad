@@ -64,16 +64,24 @@ shows up right away, and editing it updates the open windows.
 
 ## Packaging and icons
 
-The artwork lives in `oxypad-icons/`; each platform takes it from there.
+Each platform has one script in `packaging/`, which the release workflow runs
+and which runs the same way locally. The version comes from one place,
+`[workspace.package] version` in `Cargo.toml` (`packaging/env.sh`), and the
+files go to `dist/`, each with a `.sha256`.
 
-| Platform | How                                   | Icon source                          |
-| -------- | ------------------------------------- | ------------------------------------ |
-| macOS    | `scripts/bundle-macos.sh` → `target/release/bundle/OxyPad.app`; `scripts/build-dmg.sh apple-silicon\|intel` → `dist/*.dmg` | `macos/oxypad-macos.icns`, made from `png/oxypad-1024.png` by `scripts/make-macos-icons.sh` |
-| Windows  | `cargo build --release` embeds it in `oxypad.exe` (`crates/app/build.rs`); the release workflow builds an MSI from `packaging/windows/OxyPad.wxs` with WiX v5 | `oxypad.ico` |
-| Linux    | `scripts/install-linux.sh` (binary, `.desktop`, hicolor icons into `~/.local`) | `png/`, `oxypad.svg` |
+| Platform | Command | Output |
+| -------- | ------- | ------ |
+| macOS    | `packaging/macos/package.sh --arch apple-silicon\|intel` (`--app-only` stops at `OxyPad.app`) | `OxyPad-<version>-macos-<arch>.dmg` |
+| Windows  | `pwsh packaging/windows/package.ps1 -Arch x64\|arm64` (needs WiX v5) | `.msi` and `-portable.zip` |
+| Linux    | `packaging/linux/package.sh` (needs nfpm for deb/rpm) | `.AppImage`, `.deb`, `.rpm`, `.tar.gz` |
 
-The app id is `org.oxyapps.oxypad` everywhere (bundle identifier, Wayland/X11
-app id, desktop file name).
+`scripts/install-linux.sh` installs a development build into `~/.local`.
+
+The artwork lives in `oxypad-icons/`: macOS uses `macos/oxypad-macos.icns`
+(made from `png/oxypad-1024.png` by `scripts/make-macos-icons.sh`), Windows
+embeds `oxypad.ico` in `oxypad.exe` (`crates/app/build.rs`), and Linux takes
+`png/` and `oxypad.svg`. The app id is `org.oxyapps.oxypad` everywhere (bundle
+identifier, Wayland/X11 app id, desktop file and AppStream id).
 
 ## Releases
 
@@ -101,11 +109,20 @@ To release:
 | `OxyPad-<version>-windows-x64-portable.zip` | Windows on x64, no installation |
 | `OxyPad-<version>-windows-arm64.msi` | Windows on ARM, installer |
 | `OxyPad-<version>-windows-arm64-portable.zip` | Windows on ARM, no installation |
+| `OxyPad-<version>-linux-<arch>.AppImage` | Linux on x86_64 or aarch64, any distribution |
+| `OxyPad-<version>-linux-<arch>.deb` / `.rpm` | Debian and Ubuntu / Fedora and openSUSE |
+| `OxyPad-<version>-linux-<arch>.tar.gz` | Linux, the files alone |
 
-Running the workflow by hand from the Actions tab builds the same files
-without publishing them. The macOS DMGs are signed with a Developer ID and
-notarized when the repository has the secrets listed at the top of the
-workflow; otherwise they are signed ad hoc. The Windows builds are not signed.
+Before publishing, the workflow installs the Windows ARM64 MSI on an ARM64
+runner, checks and runs OxyPad.exe, and uninstalls it. Running the workflow by
+hand from the Actions tab builds and checks the same files without publishing
+them. The macOS DMGs are signed with a Developer ID and notarized when the
+repository has the secrets listed at the top of the workflow; otherwise they are
+signed ad hoc. The Windows builds are not signed.
+
+`.github/workflows/packaging-lint.yml` checks the workflows, the packaging
+scripts, the installer XML, the desktop entry and the AppStream metadata on
+every change to them, without building.
 
 ## Shortcuts
 

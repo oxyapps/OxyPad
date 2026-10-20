@@ -28,8 +28,10 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Interface in English and Brazilian Portuguese, following the system language or the
   one picked in Settings ▸ General; new languages are single YAML files (see
   TRANSLATING.md).
-- Release builds: DMGs for Apple silicon and Intel Macs, and MSI installers and portable
-  zips for Windows x64 and ARM64. The installer adds a Start menu shortcut and lists
-  OxyPad under "Open with" for text and code files.
+- Release builds: DMGs for Apple silicon and Intel Macs, MSI installers and portable
+  zips for Windows x64 and ARM64, and AppImage, deb, rpm and tar.gz packages for Linux
+  x86_64 and aarch64. The installer adds a Start menu shortcut and lists OxyPad under
+  "Open with" for text and code files.
+- `oxypad --version` prints the version.
 
 [Unreleased]: https://github.com/oxyapps/OxyPad/commits/main

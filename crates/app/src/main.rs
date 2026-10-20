@@ -35,6 +35,7 @@ Usage: oxypad [FILE]... [-f LOG]...
 
   FILE          open FILE in an editor tab
   -f, --follow  follow LOG read-only, like `tail -f`
+  -V, --version show the version
   -h, --help    show this help";
 
 fn parse_args() -> Vec<LaunchItem> {
@@ -44,6 +45,10 @@ fn parse_args() -> Vec<LaunchItem> {
         match arg.to_str() {
             Some("-h" | "--help") => {
                 println!("{USAGE}");
+                std::process::exit(0);
+            }
+            Some("-V" | "--version") => {
+                println!("OxyPad {}", env!("CARGO_PKG_VERSION"));
                 std::process::exit(0);
             }
             Some("-f" | "--follow") => match args.next() {
