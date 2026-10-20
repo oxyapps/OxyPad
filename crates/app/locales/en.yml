@@ -115,6 +115,7 @@ status:
   tail_error: "Tail: error, %{error}"
   lines: "%{count} lines"
   read_only: Read-only
+  problem: "Line %{line}: %{message}"
 
 dialog:
   open: Open

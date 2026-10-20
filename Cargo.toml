@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/core", "crates/tail", "crates/session", "crates/syntax", "crates/app"]
+members = ["crates/core", "crates/tail", "crates/session", "crates/syntax", "crates/lint", "crates/app"]
 
 [workspace.package]
 version = "0.1.0"
@@ -12,6 +12,7 @@ oxypad-core = { path = "crates/core" }
 oxypad-tail = { path = "crates/tail" }
 oxypad-session = { path = "crates/session" }
 oxypad-syntax = { path = "crates/syntax" }
+oxypad-lint = { path = "crates/lint" }
 
 anyhow = "1"
 chardetng = "0.1"

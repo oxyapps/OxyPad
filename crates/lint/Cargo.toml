@@ -1,0 +1,13 @@
+[package]
+name = "oxypad-lint"
+description = "Syntax checks for OxyPad's data and configuration files: JSON, YAML, TOML and XML."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+roxmltree = "0.21"
+saphyr-parser = "0.2"
+serde.workspace = true
+serde_json.workspace = true
+toml = { version = "1.1", default-features = false, features = ["std", "parse", "serde"] }

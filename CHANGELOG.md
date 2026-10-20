@@ -14,6 +14,10 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Notepad++), find and replace, word wrap, and files kept in their own encoding (UTF-8,
   UTF-16, legacy code pages) and line endings.
 - Sessions like Notepad++: open tabs and unsaved changes survive quitting and crashes.
+- Syntax checking for JSON (with comments and trailing commas in JSONC files such as
+  `tsconfig.json`), YAML, TOML and XML, a moment after typing stops: the first error is
+  underlined, its message shows on hover and in the status bar, and clicking it there
+  moves to it. Files over 4 MB are not checked.
 - One OxyPad at a time: opening files while it runs (from File Explorer, Finder, a file
   manager or the command line) adds them as tabs of the front window instead of starting
   another OxyPad with the same session.

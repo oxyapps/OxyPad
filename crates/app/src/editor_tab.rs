@@ -1,14 +1,26 @@
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 use anyhow::{Context as _, Result};
 use gpui_kit::{
+    base::input::{Diagnostic, DiagnosticSeverity},
     component::input::{Editor, EditorState, InputEvent, Position, TabSize},
     *,
 };
 use oxypad_core::{Document, ExternalChange};
+use oxypad_lint::Problem;
+use ropey::LineType;
 use oxypad_session::{Preferences, TabKind, TabSnapshot};
 
 use crate::{preferences, syntax};
+
+/// How long typing must pause before the syntax is checked again.
+const CHECK_DELAY: Duration = Duration::from_millis(400);
+/// Larger files are not checked: parsing them on every pause would cost
+/// more than it helps.
+const CHECK_LIMIT: usize = 4 * 1024 * 1024;
 
 fn tab_size(preferences: &Preferences) -> TabSize {
     TabSize { tab_size: preferences.tab_width as usize, hard_tabs: !preferences.insert_spaces }
@@ -27,6 +39,11 @@ pub struct EditorTab {
     read_only: bool,
     /// The cursor the status bar last showed.
     cursor: Position,
+    /// The syntax error found by the last check (JSON, YAML, TOML, XML).
+    problem: Option<Problem>,
+    /// Counts edits, so a check of older text is not shown.
+    edits: u64,
+    _check: Task<()>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -62,6 +79,8 @@ impl EditorTab {
             cx.subscribe(&editor, |this, _, event: &InputEvent, cx| {
                 if matches!(event, InputEvent::Change) {
                     this.dirty = true;
+                    this.edits += 1;
+                    this.check_syntax(true, cx);
                     cx.notify();
                 }
             }),
@@ -76,7 +95,7 @@ impl EditorTab {
             }),
         ];
 
-        Self {
+        let mut this = Self {
             id,
             untitled_name,
             document,
@@ -85,8 +104,74 @@ impl EditorTab {
             soft_wrap: preferences.wrap_lines,
             read_only: false,
             cursor: Position::default(),
+            problem: None,
+            edits: 0,
+            _check: Task::ready(()),
             _subscriptions,
+        };
+        this.check_syntax(false, cx);
+        this
+    }
+
+    /// The syntax error in a JSON, YAML, TOML or XML file, if any.
+    pub fn problem(&self) -> Option<&Problem> {
+        self.problem.as_ref()
+    }
+
+    /// Checks the syntax in the background, after a pause in typing when
+    /// `wait`, and marks the error in the editor.
+    fn check_syntax(&mut self, wait: bool, cx: &mut Context<Self>) {
+        let language = syntax::detect(self.document.path());
+        let text = self.editor.read(cx).text().clone();
+        if !oxypad_lint::is_supported(&language) || text.len() > CHECK_LIMIT {
+            self._check = Task::ready(());
+            self.show_problem(None, cx);
+            return;
         }
+        let path = self.document.path().map(Path::to_path_buf);
+        let edits = self.edits;
+        self._check = cx.spawn(async move |this, cx| {
+            if wait {
+                cx.background_executor().timer(CHECK_DELAY).await;
+            }
+            let problem =
+                cx.background_spawn(async move { oxypad_lint::check(&language, path.as_deref(), &text.to_string()) }).await;
+            let _ = this.update(cx, |this, cx| {
+                if this.edits == edits {
+                    this.show_problem(problem, cx);
+                }
+            });
+        });
+    }
+
+    fn show_problem(&mut self, problem: Option<Problem>, cx: &mut Context<Self>) {
+        if problem == self.problem && problem.is_none() {
+            return;
+        }
+        self.editor.update(cx, |state, cx| {
+            let line_length = |line: usize| {
+                let text = state.text();
+                if line >= text.len_lines(LineType::LF) {
+                    return 0;
+                }
+                text.line(line, LineType::LF).chars().filter(|ch| *ch != '\n' && *ch != '\r').count()
+            };
+            let diagnostic = problem.as_ref().map(|problem| {
+                // One character wide, so an error at the end of a line shows too.
+                let length = line_length(problem.line);
+                let start = problem.column.min(length.saturating_sub(1));
+                let range = Position::new(problem.line as u32, start as u32)
+                    ..Position::new(problem.line as u32, (start + 1).min(length.max(1)) as u32);
+                Diagnostic::new(range, problem.message.clone()).with_severity(DiagnosticSeverity::Error)
+            });
+            if let Some(diagnostics) = state.diagnostics_mut() {
+                diagnostics.clear();
+                diagnostics.extend(diagnostic);
+            }
+            cx.notify();
+        });
+        self.problem = problem;
+        cx.notify();
     }
 
     pub fn id(&self) -> u64 {
@@ -180,6 +265,7 @@ impl EditorTab {
     pub fn refresh_language(&mut self, cx: &mut Context<Self>) {
         let language = syntax::detect(self.document.path());
         self.editor.update(cx, |state, cx| state.set_highlighter(language, cx));
+        self.check_syntax(false, cx);
         // The status bar shows the language.
         cx.notify();
     }

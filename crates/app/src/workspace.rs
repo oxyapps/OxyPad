@@ -8,6 +8,7 @@ use std::{
 };
 
 use gpui_kit::{
+    assets::IconName as Lucide,
     component::{
         ActiveTheme, IconName, Sizable, TitleBar, WindowExt,
         highlighter::HighlightTheme,
@@ -1024,8 +1025,29 @@ impl Workspace {
                 let document = tab.document();
                 let cursor = tab.cursor(cx);
                 let path = document.path().map_or_else(|| t!("status.untitled").to_string(), display_path);
+                let problem = tab.problem().map(|problem| {
+                    let message = t!("status.problem", line = problem.line + 1, message = shortened(&problem.message, 80));
+                    let at = (problem.line as u32, problem.column as u32);
+                    let editor = self.tabs[self.active].clone();
+                    Button::new("syntax-problem")
+                        .label(message)
+                        .icon(Lucide::CircleAlert)
+                        .ghost()
+                        .xsmall()
+                        .text_color(cx.theme().danger)
+                        .tooltip(problem.message.clone())
+                        .on_click(move |_, window, cx| {
+                            if let TabView::Editor(tab) = &editor {
+                                tab.update(cx, |tab, cx| {
+                                    tab.set_cursor(at, window, cx);
+                                    tab.focus(window, cx);
+                                });
+                            }
+                        })
+                });
                 bar = bar
                     .left(item(path.into()))
+                    .when_some(problem, |bar, problem| bar.left(problem))
                     .when(tab.is_read_only(), |bar| bar.right(item(t!("status.read_only").into())))
                     .right(item(t!("status.position", line = cursor.line + 1, column = cursor.character + 1).to_string().into()))
                     .right(item(tab.language(cx)))
@@ -1131,5 +1153,13 @@ impl Render for Workspace {
             .child(self.render_tab_bar(cx))
             .child(h_flex().flex_1().min_h_0().children(content.map(|view| div().size_full().child(view))))
             .child(self.render_status_bar(cx))
+    }
+}
+
+/// `text` cut to `max` characters, with an ellipsis when cut.
+fn shortened(text: &str, max: usize) -> String {
+    match text.char_indices().nth(max) {
+        Some((cut, _)) => format!("{}…", &text[..cut]),
+        None => text.to_owned(),
     }
 }

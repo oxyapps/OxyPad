@@ -20,6 +20,7 @@ dirs.workspace = true
 futures = { version = "0.3", default-features = false, features = ["std"] }
 gpui-kit = "=0.8.0"
 oxypad-core.workspace = true
+oxypad-lint.workspace = true
 oxypad-session.workspace = true
 oxypad-syntax.workspace = true
 oxypad-tail.workspace = true

@@ -23,6 +23,8 @@ Notepad++ and MacPad++. Prototype stage.
 - Settings window (Mod-,): session, font, indentation, display, theme,
   format of new documents, log options; saved in `settings.json` next to the session
 - Sessions like Notepad++: open tabs and unsaved edits survive quitting and crashes
+- Syntax check for JSON (and JSON with comments), YAML, TOML and XML as you type: the
+  error is underlined, explained on hover and shown in the status bar (click to go there)
 - One OxyPad at a time: a file opened from File Explorer (*Open with*, *Edit with
   OxyPad*), Finder, a file manager or the command line becomes a tab of the running one
 - Notices files changed by other programs and asks what to do: reload, follow
@@ -167,10 +169,11 @@ crates/
   tail/     log follower (truncation/rotation) and log-level classification
   session/  session and unsaved-text backups
   syntax/   syntax highlighting and folding with Lexilla (vendored C++ in vendor/)
+  lint/     syntax checks for JSON, YAML, TOML and XML
   app/      the GPUI application (gpui-kit)
 ```
 
-`core`, `tail`, `session` and `syntax` do not depend on the UI and are unit
+`core`, `tail`, `session`, `syntax` and `lint` do not depend on the UI and are unit
 tested (`cargo test --workspace`).
 
 ## License
