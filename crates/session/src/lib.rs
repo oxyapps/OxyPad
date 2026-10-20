@@ -23,7 +23,9 @@ use serde::{Deserialize, Serialize};
 
 mod preferences;
 
-pub use preferences::{LineEndingPreference, Preferences, ThemePreference};
+pub use preferences::{
+    LineEndingPreference, LogColor, LogHighlighting, LogLevelStyle, LogRule, Preferences, ThemePreference,
+};
 
 const SESSION_FILE: &str = "session.json";
 const BACKUP_DIR: &str = "backups";

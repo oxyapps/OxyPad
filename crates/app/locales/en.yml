@@ -217,12 +217,39 @@ settings:
 
   logs: Logs
   tail: Tail
-  color_levels: Color log levels
-  color_levels_detail: Errors in red, warnings in yellow, debug and trace dimmed.
+  color_levels: Highlight log lines
+  color_levels_detail: Colors lines by their level and marks your own highlights.
+  log_highlighting: Colors and keywords
+  log_highlighting_detail: The color and the words of each level, and text to highlight.
+  configure: Configure…
   max_lines: Lines kept in memory
   max_lines_detail: Older lines are dropped from the top.
   initial_kib: Initial amount to load (KiB)
   initial_kib_detail: How much of the end of an existing log is shown when following starts.
+
+log_highlighting:
+  title: Log Highlighting
+  levels: Levels
+  levels_note: "A line takes the level of the first of these words near its start: in UPPER CASE or Capitalized, or in lower case before a colon (error:). Letters only, separated by spaces."
+  error: Error
+  warning: Warning
+  info: Info
+  debug: Debug
+  trace: Trace
+  rules: Your highlights
+  rules_note: Text marked wherever it appears, over the level colors.
+  no_rules: None yet.
+  rule_placeholder: Text to highlight
+  add_rule: Add Highlight
+  remove_rule: Remove
+  background: Background
+  whole_line: Whole line
+  match_case: Match case
+  preview: Preview
+  no_color: No color
+  gray: Gray
+  restore_defaults: Restore Defaults
+  save: Save
 
 # Texts of the gpui-kit components OxyPad uses (editor context menu, find
 # bar, Settings search). Ours take precedence over gpui-kit's own, so they

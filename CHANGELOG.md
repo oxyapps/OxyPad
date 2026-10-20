@@ -44,6 +44,10 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   survives truncation and log rotation, colors error and warning lines, and pauses
   while you scroll up. It never keeps the program writing the log from writing,
   including Windows PowerShell's `Add-Content`.
+- Log highlighting settings (Settings ▸ Logs ▸ Colors and keywords): the color and the
+  keywords of each level, and your own highlights, text marked in a color or with a
+  background, optionally its whole line and matching case, drawn over the level colors.
+  A sample log previews the changes before they are saved.
 - Side-by-side comparison of two open tabs, with changed lines and words highlighted,
   synchronized scrolling, a draggable divider and F7 to jump between differences.
 - When a file is changed by another program, OxyPad offers to reload it, follow it as a

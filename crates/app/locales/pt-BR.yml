@@ -212,12 +212,39 @@ settings:
 
   logs: Logs
   tail: Tail
-  color_levels: Colorir níveis de log
-  color_levels_detail: Erros em vermelho, avisos em amarelo, debug e trace esmaecidos.
+  color_levels: Realçar linhas do log
+  color_levels_detail: Colore as linhas pelo nível e marca os seus próprios realces.
+  log_highlighting: Cores e palavras-chave
+  log_highlighting_detail: A cor e as palavras de cada nível, e textos para realçar.
+  configure: Configurar…
   max_lines: Linhas mantidas na memória
   max_lines_detail: As linhas mais antigas são descartadas do topo.
   initial_kib: Quantidade inicial a carregar (KiB)
   initial_kib_detail: Quanto do final de um log existente é mostrado ao começar a acompanhar.
+
+log_highlighting:
+  title: Realce de Logs
+  levels: Níveis
+  levels_note: "Uma linha recebe o nível da primeira destas palavras perto do início: em MAIÚSCULAS ou Capitalizada, ou em minúsculas antes de dois-pontos (error:). Só letras, separadas por espaços."
+  error: Erro
+  warning: Aviso
+  info: Info
+  debug: Debug
+  trace: Trace
+  rules: Seus realces
+  rules_note: Texto marcado onde aparecer, por cima das cores dos níveis.
+  no_rules: Nenhum ainda.
+  rule_placeholder: Texto a realçar
+  add_rule: Adicionar Realce
+  remove_rule: Remover
+  background: Fundo
+  whole_line: Linha inteira
+  match_case: Diferenciar maiúsculas
+  preview: Prévia
+  no_color: Sem cor
+  gray: Cinza
+  restore_defaults: Restaurar Padrões
+  save: Salvar
 
 # Textos dos componentes do gpui-kit usados pelo OxyPad.
 gpui_component:

@@ -31,7 +31,9 @@ Notepad++ and MacPad++. Prototype stage.
   as a log, keep your version or close (and save again when a file was deleted)
 - Encodings and line endings kept on save (UTF-8, UTF-8 BOM, UTF-16, legacy code pages; LF/CRLF/CR)
 - **Log mode (`tail -F`)**: the Tail toolbar button turns it on and off for any saved file; read-only, follows appends, survives truncation and
-  rotation, colors ERROR/WARN/DEBUG lines, pauses when you scroll up
+  rotation, colors ERROR/WARN/DEBUG lines, pauses when you scroll up. Settings ▸ Logs ▸
+  Colors and keywords sets each level's color and words, and your own highlights (text,
+  color, background or whole line), with a live preview
 
 ## Build and run
 

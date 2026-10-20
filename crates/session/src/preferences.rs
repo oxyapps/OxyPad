@@ -37,6 +37,94 @@ impl LineEndingPreference {
     }
 }
 
+/// A color for log highlighting, from the color theme's palette, so it
+/// suits light and dark themes alike.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LogColor {
+    /// Not highlighted.
+    #[default]
+    None,
+    Red,
+    Yellow,
+    Green,
+    Cyan,
+    Blue,
+    Magenta,
+    Gray,
+}
+
+impl LogColor {
+    pub const ALL: [Self; 8] =
+        [Self::None, Self::Red, Self::Yellow, Self::Green, Self::Cyan, Self::Blue, Self::Magenta, Self::Gray];
+}
+
+/// How lines of one log level are found and colored.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct LogLevelStyle {
+    pub color: LogColor,
+    /// The words that mark the level; `None` keeps the built-in ones.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keywords: Option<Vec<String>>,
+}
+
+impl LogLevelStyle {
+    fn colored(color: LogColor) -> Self {
+        Self { color, keywords: None }
+    }
+}
+
+/// Text highlighted wherever it appears in a log.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct LogRule {
+    pub text: String,
+    pub color: LogColor,
+    /// Highlight the background instead of coloring the text.
+    pub background: bool,
+    pub match_case: bool,
+    /// Highlight the whole line, not only the text.
+    pub whole_line: bool,
+}
+
+/// Highlighting in tail mode: one style per level, most severe first, and
+/// the user's own rules, which take precedence.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct LogHighlighting {
+    pub error: LogLevelStyle,
+    pub warn: LogLevelStyle,
+    pub info: LogLevelStyle,
+    pub debug: LogLevelStyle,
+    pub trace: LogLevelStyle,
+    pub rules: Vec<LogRule>,
+}
+
+impl Default for LogHighlighting {
+    fn default() -> Self {
+        Self {
+            error: LogLevelStyle::colored(LogColor::Red),
+            warn: LogLevelStyle::colored(LogColor::Yellow),
+            info: LogLevelStyle::colored(LogColor::None),
+            debug: LogLevelStyle::colored(LogColor::Gray),
+            trace: LogLevelStyle::colored(LogColor::Gray),
+            rules: Vec::new(),
+        }
+    }
+}
+
+impl LogHighlighting {
+    /// The level styles, most severe first (error, warn, info, debug, trace).
+    pub fn levels(&self) -> [&LogLevelStyle; 5] {
+        [&self.error, &self.warn, &self.info, &self.debug, &self.trace]
+    }
+
+    pub fn levels_mut(&mut self) -> [&mut LogLevelStyle; 5] {
+        [&mut self.error, &mut self.warn, &mut self.info, &mut self.debug, &mut self.trace]
+    }
+}
+
 /// User preferences. Missing fields take their default, so files written by
 /// older versions keep loading.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -62,6 +150,7 @@ pub struct Preferences {
     pub new_line_ending: LineEndingPreference,
     pub new_utf8_bom: bool,
     pub color_log_levels: bool,
+    pub log_highlighting: LogHighlighting,
     pub log_max_lines: u32,
     /// How much of an existing log is shown when it is opened, in KiB.
     pub log_initial_kib: u32,
@@ -85,6 +174,7 @@ impl Default for Preferences {
             new_line_ending: LineEndingPreference::Native,
             new_utf8_bom: false,
             color_log_levels: true,
+            log_highlighting: LogHighlighting::default(),
             log_max_lines: 200_000,
             log_initial_kib: 2048,
         }

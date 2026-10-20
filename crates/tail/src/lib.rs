@@ -21,7 +21,7 @@ use std::{
 
 mod level;
 
-pub use level::{LogLevel, classify_line, level_spans};
+pub use level::{HighlightRule, LogLevel, LogMatcher, Mark, classify_line, level_spans};
 
 /// Upper bound of bytes returned by a single [`LogFollower::poll`], so one
 /// burst of logging never blocks the UI with a giant chunk.

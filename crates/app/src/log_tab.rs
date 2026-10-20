@@ -5,16 +5,13 @@ use std::{
 };
 
 use gpui_kit::{
-    component::{
-        ActiveTheme,
-        input::{Editor, EditorState, RopeExt, TextDecoration, TextDecorationCollection},
-    },
+    component::input::{Editor, EditorState, RopeExt, TextDecorationCollection},
     *,
 };
 use oxypad_session::{Preferences, TabKind, TabSnapshot};
-use oxypad_tail::{LogFollower, LogLevel, ResetReason, TailEvent, level_spans};
+use oxypad_tail::{LogFollower, LogMatcher, ResetReason, TailEvent};
 
-use crate::preferences;
+use crate::{log_highlight, preferences};
 
 const POLL_INTERVAL: Duration = Duration::from_millis(250);
 
@@ -35,6 +32,10 @@ pub struct LogTab {
     editor: Entity<EditorState>,
     follow: bool,
     status: LogStatus,
+    /// Finds levels and highlight rules, as the preferences set them.
+    matcher: LogMatcher,
+    /// The highlight rules' marks, drawn over the levels'.
+    rules: TextDecorationCollection,
     levels: TextDecorationCollection,
     _poll: Task<()>,
 }
@@ -73,8 +74,11 @@ impl LogTab {
                 .scroll_beyond_last_line(Some(0))
                 .default_value(text.clone())
         });
-        let levels = editor.update(cx, |state, cx| {
-            state.create_decorations_collection(level_decorations(&text, 0, cx), cx)
+        let matcher = log_highlight::matcher(&preferences::get(cx).log_highlighting);
+        let marks = decorations(&matcher, &text, 0, cx);
+        // The first collection wins where they overlap: rules over levels.
+        let (rules, levels) = editor.update(cx, |state, cx| {
+            (state.create_decorations_collection(marks.rules, cx), state.create_decorations_collection(marks.levels, cx))
         });
         // No observer on the editor: it notifies on every cursor blink, and
         // what the status bar shows (line count, follow state) changes only
@@ -86,6 +90,8 @@ impl LogTab {
             editor,
             follow,
             status: if follow { LogStatus::Following } else { LogStatus::Paused },
+            matcher,
+            rules,
             levels,
             _poll: Task::ready(()),
         };
@@ -139,7 +145,7 @@ impl LogTab {
             }
             TailEvent::Reset { text, reason } => {
                 self.editor.update(cx, |state, cx| state.set_value(text.clone(), window, cx));
-                self.levels.set(level_decorations(&text, 0, cx), cx);
+                self.mark_all(cx);
                 self.status = LogStatus::Reset(reason);
                 if self.follow {
                     self.scroll_to_end(cx);
@@ -163,7 +169,9 @@ impl LogTab {
                 state.set_scroll_offset(scroll, cx);
             }
         });
-        self.levels.append(level_decorations(text, base, cx), cx);
+        let marks = decorations(&self.matcher, text, base, cx);
+        self.rules.append(marks.rules, cx);
+        self.levels.append(marks.levels, cx);
         self.trim(cx, window);
         if follow {
             self.status = LogStatus::Following;
@@ -189,8 +197,15 @@ impl LogTab {
             let end = selection.end.saturating_sub(cut);
             state.set_selected_range(start..end, cx);
         });
+        self.mark_all(cx);
+    }
+
+    /// Marks levels and highlights in the whole text again.
+    fn mark_all(&mut self, cx: &mut Context<Self>) {
         let text = self.editor.read(cx).text().to_string();
-        self.levels.set(level_decorations(&text, 0, cx), cx);
+        let marks = decorations(&self.matcher, &text, 0, cx);
+        self.rules.set(marks.rules, cx);
+        self.levels.set(marks.levels, cx);
     }
 
     /// Pauses following when the user scrolled away from the end, and
@@ -241,11 +256,11 @@ impl LogTab {
         self.editor.read(cx).text().lines_len()
     }
 
-    /// Applies changed preferences: line numbers and level colors.
+    /// Applies changed preferences: line numbers and highlighting.
     pub fn apply_preferences(&mut self, preferences: &Preferences, window: &mut Window, cx: &mut Context<Self>) {
         self.editor.update(cx, |state, cx| state.set_line_number(preferences.show_line_numbers, window, cx));
-        let text = self.editor.read(cx).text().to_string();
-        self.levels.set(level_decorations(&text, 0, cx), cx);
+        self.matcher = log_highlight::matcher(&preferences.log_highlighting);
+        self.mark_all(cx);
     }
 
     /// Opens the find bar. Logs are read-only, so there is no replace.
@@ -281,21 +296,11 @@ impl Render for LogTab {
     }
 }
 
-fn level_decorations(text: &str, base: usize, cx: &App) -> Vec<TextDecoration> {
-    if !preferences::get(cx).color_log_levels {
-        return Vec::new();
+/// The marks of `text` (offset by `base`), or none when highlighting is off.
+fn decorations(matcher: &LogMatcher, text: &str, base: usize, cx: &App) -> log_highlight::Decorations {
+    let preferences = preferences::get(cx);
+    if !preferences.color_log_levels {
+        return log_highlight::Decorations { rules: Vec::new(), levels: Vec::new() };
     }
-    let theme = cx.theme();
-    level_spans(text, base)
-        .into_iter()
-        .filter_map(|(range, level)| {
-            let color = match level {
-                LogLevel::Error => theme.red,
-                LogLevel::Warn => theme.yellow,
-                LogLevel::Debug | LogLevel::Trace => theme.muted_foreground,
-                LogLevel::Info => return None,
-            };
-            Some(TextDecoration::new(range, HighlightStyle { color: Some(color), ..Default::default() }))
-        })
-        .collect()
+    log_highlight::decorations(matcher, &preferences.log_highlighting, text, base, cx)
 }

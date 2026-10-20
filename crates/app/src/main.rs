@@ -15,6 +15,7 @@ mod compare_tab;
 mod editor_tab;
 mod i18n;
 mod instance;
+mod log_highlight;
 mod log_tab;
 mod menus;
 mod preferences;

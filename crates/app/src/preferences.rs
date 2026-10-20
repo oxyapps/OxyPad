@@ -15,7 +15,7 @@ use gpui_kit::{
 };
 use oxypad_session::{LineEndingPreference, Preferences, ThemePreference, data_dir};
 
-use crate::{i18n, themes};
+use crate::{i18n, log_highlight, themes};
 
 /// App-wide preferences. Observers of this global (the workspace) re-apply
 /// them to open tabs when they change.
@@ -362,6 +362,19 @@ impl Render for SettingsView {
                 .item(
                     switch(t!("settings.color_levels"), |p| p.color_log_levels, |p, v| p.color_log_levels = v)
                         .description(t!("settings.color_levels_detail").to_string()),
+                )
+                .item(
+                    SettingItem::new(
+                        t!("settings.log_highlighting"),
+                        SettingField::render(|options, _, _| {
+                            Button::new("configure-log-highlighting")
+                                .outline()
+                                .with_size(options.size())
+                                .label(t!("settings.configure"))
+                                .on_click(|_, window, cx| log_highlight::editor::open(window, cx))
+                        }),
+                    )
+                    .description(t!("settings.log_highlighting_detail").to_string()),
                 )
                 .item(
                     number(t!("settings.max_lines"), (10_000., 2_000_000., 10_000.), |p| p.log_max_lines as f64, |p, v| {
