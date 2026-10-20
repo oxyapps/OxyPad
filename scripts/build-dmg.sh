@@ -38,7 +38,7 @@ scripts/bundle-macos.sh "$TARGET"
 APP="target/$TARGET/release/bundle/OxyPad.app"
 BUILT_ARCHS="$(lipo -archs "$APP/Contents/MacOS/oxypad")"
 [[ "$BUILT_ARCHS" == "$ARCH" ]] || { echo "error: built $BUILT_ARCHS, expected $ARCH" >&2; exit 1; }
-cp -R "$APP" "$WORK/"
+ditto --noextattr --norsrc "$APP" "$WORK/OxyPad.app"
 
 echo "==> Creating DMG"
 mkdir -p "$ROOT/dist"

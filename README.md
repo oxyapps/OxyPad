@@ -74,7 +74,7 @@ The artwork lives in `oxypad-icons/`; each platform takes it from there.
 
 | Platform | How                                   | Icon source                          |
 | -------- | ------------------------------------- | ------------------------------------ |
-| macOS    | `scripts/bundle-macos.sh` → `target/release/bundle/OxyPad.app`; `scripts/build-dmg.sh apple-silicon\|intel` → `dist/*.dmg` | `oxypad.icns` |
+| macOS    | `scripts/bundle-macos.sh` → `target/release/bundle/OxyPad.app`; `scripts/build-dmg.sh apple-silicon\|intel` → `dist/*.dmg` | `png/oxypad-1024.png`, scaled into Apple's 824 px grid (`.icns` generated) |
 | Windows  | `cargo build --release` embeds it in `oxypad.exe` (`crates/app/build.rs`) | `oxypad.ico` |
 | Linux    | `scripts/install-linux.sh` (binary, `.desktop`, hicolor icons into `~/.local`) | `png/`, `oxypad.svg` |
 

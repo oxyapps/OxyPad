@@ -23,7 +23,7 @@ cd "$(dirname "$0")/.."
 APP_NAME="OxyPad"
 BUNDLE_ID="org.oxyapps.oxypad"
 BINARY="oxypad"
-ICON="oxypad-icons/oxypad.icns"
+ICON_SOURCE="oxypad-icons/png/oxypad-1024.png"
 TARGET="${1:-}"
 
 if [ -n "$TARGET" ]; then
@@ -36,13 +36,36 @@ fi
 
 VERSION=$(cargo pkgid -p oxypad | sed 's/.*[#@]//')
 BUILD="${BUILD_NUMBER:-$VERSION}"
-BUNDLE="$OUT/bundle/$APP_NAME.app"
-rm -rf "$BUNDLE"
+DEST="$OUT/bundle/$APP_NAME.app"
+# Built and signed outside the project: Finder and iCloud-synced folders
+# (Documents, Desktop) add extended attributes to new files, and codesign
+# rejects a bundle that has them.
+STAGE="$(mktemp -d "${TMPDIR:-/tmp}/oxypad-bundle.XXXXXX")"
+trap 'rm -rf "$STAGE"' EXIT
+BUNDLE="$STAGE/$APP_NAME.app"
 mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
 cp "$OUT/$BINARY" "$BUNDLE/Contents/MacOS/$BINARY"
 
-# Without extended attributes (quarantine, Finder info), which codesign rejects.
-cp -X "$ICON" "$BUNDLE/Contents/Resources/$APP_NAME.icns"
+# The artwork fills its canvas; macOS icons keep it within Apple's grid,
+# 824 of 1024 pixels with a transparent margin, so OxyPad matches the size
+# of other apps in the Dock and Launchpad.
+ICONSET="$STAGE/$APP_NAME.iconset"
+rm -rf "$ICONSET"
+mkdir -p "$ICONSET"
+sips -Z 824 "$ICON_SOURCE" --out "$ICONSET/artwork.png" >/dev/null
+sips -p 1024 1024 "$ICONSET/artwork.png" --out "$ICONSET/icon_512x512@2x.png" >/dev/null
+rm "$ICONSET/artwork.png"
+for size in 16 32 128 256 512; do
+    for scale in 1 2; do
+        pixels=$((size * scale))
+        name="icon_${size}x${size}"
+        [ "$scale" = 2 ] && name="${name}@2x"
+        [ "$pixels" = 1024 ] && continue
+        sips -z "$pixels" "$pixels" "$ICONSET/icon_512x512@2x.png" --out "$ICONSET/$name.png" >/dev/null
+    done
+done
+iconutil -c icns "$ICONSET" -o "$BUNDLE/Contents/Resources/$APP_NAME.icns"
+rm -rf "$ICONSET"
 
 cat > "$BUNDLE/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -92,4 +115,8 @@ else
     codesign --force --sign - "$BUNDLE"
 fi
 codesign --verify --strict "$BUNDLE"
-echo "Built $BUNDLE ($VERSION, $(lipo -archs "$BUNDLE/Contents/MacOS/$BINARY"))"
+
+rm -rf "$DEST"
+mkdir -p "$(dirname "$DEST")"
+ditto --noextattr --norsrc "$BUNDLE" "$DEST"
+echo "Built $DEST ($VERSION, $(lipo -archs "$DEST/Contents/MacOS/$BINARY"))"
