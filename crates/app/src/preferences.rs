@@ -1,13 +1,17 @@
 //! User preferences: the app-wide state, how it is applied, and the
 //! Settings window.
 
-use std::{borrow::Cow, path::PathBuf};
+use std::{
+    borrow::Cow,
+    path::{Path, PathBuf},
+};
 
 use gpui_kit::{
     component::{
         ActiveTheme, IconName, Theme, ThemeMode, ThemeRegistry,
         Sizable,
         button::Button,
+        input::{Input, InputEvent, InputState},
         setting::{NumberFieldOptions, SettingField, SettingGroup, SettingItem, SettingPage, Settings},
         v_flex,
     },
@@ -15,7 +19,7 @@ use gpui_kit::{
 };
 use oxypad_session::{LineEndingPreference, Preferences, ThemePreference, data_dir};
 
-use crate::{i18n, log_highlight, terminal, themes};
+use crate::{diagnostics, i18n, log_highlight, terminal, themes};
 
 /// App-wide preferences. Observers of this global (the workspace) re-apply
 /// them to open tabs when they change.
@@ -33,6 +37,7 @@ impl Global for AppPreferences {}
 pub fn init(cx: &mut App) {
     let dir = data_dir().ok();
     let values = dir.as_deref().map(Preferences::load).unwrap_or_default();
+    diagnostics::apply(values.diagnostic_log);
     let default_mono_font = cx.theme().mono_font_family.clone();
     cx.set_global(AppPreferences { values, dir, default_mono_font, window: None });
 }
@@ -53,10 +58,11 @@ pub fn update(cx: &mut App, change: impl FnOnce(&mut Preferences)) {
         if let Some(dir) = &state.dir
             && let Err(err) = values.save(dir)
         {
-            eprintln!("oxypad: could not save the settings: {err:#}");
+            log::error!("could not save the settings: {err:#}");
         }
         state.values = values;
     });
+    diagnostics::apply(get(cx).diagnostic_log);
     apply_appearance(None, cx);
     i18n::apply(cx);
     cx.refresh_windows();
@@ -107,7 +113,7 @@ pub fn open_window(cx: &mut App) {
     };
     match gpui_kit::open_window(options, cx, |window, cx| cx.new(|cx| SettingsView::new(window, cx))) {
         Ok((handle, _)) => cx.global_mut::<AppPreferences>().window = Some(handle),
-        Err(err) => eprintln!("oxypad: could not open the settings: {err:#}"),
+        Err(err) => log::error!("could not open the settings: {err:#}"),
     }
 }
 
@@ -125,11 +131,41 @@ struct SettingsView {
     fonts: Vec<(SharedString, SharedString)>,
     /// The terminal choices: automatic, those installed, a custom command.
     terminals: Vec<(SharedString, SharedString)>,
+    terminal_command: Entity<InputState>,
+    _subscription: Subscription,
 }
 
 impl SettingsView {
-    fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
-        Self { fonts: monospace_fonts(cx), terminals: terminal_choices(cx) }
+    fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let command = get(cx).terminal_command.clone();
+        let terminal_command =
+            cx.new(|cx| InputState::new(window, cx).default_value(command).placeholder(TERMINAL_EXAMPLE));
+        let _subscription = cx.subscribe(&terminal_command, |_, input, event: &InputEvent, cx| {
+            if matches!(event, InputEvent::Change) {
+                let value = input.read(cx).value().to_string();
+                update(cx, |p| p.terminal_command = value);
+            }
+        });
+        Self { fonts: monospace_fonts(cx), terminals: terminal_choices(cx), terminal_command, _subscription }
+    }
+
+    /// The custom terminal command: the field across the whole width, then
+    /// what it takes. Shown only while "Custom command" is chosen.
+    fn terminal_command_item(&self) -> SettingItem {
+        let input = self.terminal_command.clone();
+        SettingItem::render(move |options, _, cx| {
+            v_flex()
+                .w_full()
+                .gap_1()
+                .child(Input::new(&input).aria_label(t!("settings.terminal_command")).with_size(options.size()).w_full())
+                .child(
+                    div()
+                        .text_sm()
+                        .text_color(cx.theme().muted_foreground)
+                        .child(t!("settings.terminal_command_detail").to_string()),
+                )
+        })
+        .keywords([t!("settings.terminal_command")])
     }
 }
 
@@ -252,6 +288,17 @@ impl Render for SettingsView {
         // Follows a change of language.
         window.set_window_title(&t!("settings.window_title"));
         let fonts = self.fonts.clone();
+        let mut terminal_group = section(t!("settings.terminal")).item(SettingItem::new(
+            t!("settings.terminal_app"),
+            SettingField::dropdown(
+                self.terminals.clone(),
+                |cx| get(cx).terminal.clone().into(),
+                |value, cx| update(cx, |p| p.terminal = value.to_string()),
+            ),
+        ));
+        if get(cx).terminal == terminal::CUSTOM {
+            terminal_group = terminal_group.item(self.terminal_command_item());
+        }
         let general = SettingPage::new(t!("settings.general")).icon(IconName::Settings).default_open(true).groups([
             SettingGroup::new().item(SettingItem::new(
                 t!("settings.language"),
@@ -269,26 +316,30 @@ impl Render for SettingsView {
                         .description(t!("settings.remember_tabs_detail").to_string()),
                 )
                 .footer(|_, _| t!("settings.session_footer").to_string()),
-            section(t!("settings.terminal"))
-                .item(SettingItem::new(
-                    t!("settings.terminal_app"),
-                    SettingField::dropdown(
-                        self.terminals.clone(),
-                        |cx| get(cx).terminal.clone().into(),
-                        |value, cx| update(cx, |p| p.terminal = value.to_string()),
-                    ),
-                ))
+            terminal_group.footer(|_, _| t!("settings.terminal_footer").to_string()),
+            section(t!("settings.troubleshooting"))
+                .item(
+                    switch(t!("settings.diagnostic_log"), |p| p.diagnostic_log, |p, v| p.diagnostic_log = v)
+                        .description(t!("settings.diagnostic_log_detail").to_string()),
+                )
                 .item(
                     SettingItem::new(
-                        t!("settings.terminal_command"),
-                        SettingField::input(
-                            |cx| get(cx).terminal_command.clone().into(),
-                            |value, cx| update(cx, |p| p.terminal_command = value.to_string()),
-                        ),
+                        t!("settings.log_file"),
+                        SettingField::render(|options, _, _| {
+                            Button::new("open-log-folder")
+                                .outline()
+                                .with_size(options.size())
+                                .label(t!("settings.open_folder"))
+                                .on_click(|_, _, cx| {
+                                    if let Some(dir) = diagnostics::path().as_deref().and_then(Path::parent) {
+                                        let _ = std::fs::create_dir_all(dir);
+                                        cx.open_with_system(dir);
+                                    }
+                                })
+                        }),
                     )
-                    .description(t!("settings.terminal_command_detail", example = TERMINAL_EXAMPLE).to_string()),
-                )
-                .footer(|_, _| t!("settings.terminal_footer").to_string()),
+                    .description(folder_description(diagnostics::path())),
+                ),
         ]);
 
         let editor = SettingPage::new(t!("settings.editor")).icon(IconName::SquareTerminal).groups([

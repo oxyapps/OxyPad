@@ -73,5 +73,8 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   x86_64 and aarch64. The installer adds a Start menu shortcut and lists OxyPad under
   "Open with" for text and code files.
 - `oxypad --version` prints the version.
+- A diagnostic log for troubleshooting, `oxypad.log` in the data folder, turned on in
+  Settings ▸ General ▸ Troubleshooting or with `oxypad --log`: what OxyPad does and how
+  long each step takes, such as saving the session and quitting.
 
 [Unreleased]: https://github.com/oxyapps/OxyPad/commits/main

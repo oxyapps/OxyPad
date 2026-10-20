@@ -227,8 +227,12 @@ settings:
   terminal_auto_named: Automatic (%{name})
   terminal_custom: Custom command
   terminal_command: Custom command
-  terminal_command_detail: "Used when Custom command is chosen. {dir} is the folder, e.g. %{example}"
+  terminal_command_detail: "{dir} is replaced by the folder."
   terminal_footer: Open in Terminal, in a tab's menu, opens the folder of its file.
+  troubleshooting: Troubleshooting
+  diagnostic_log: Diagnostic log
+  diagnostic_log_detail: "Records what OxyPad does and how long it takes. Also on with: oxypad --log"
+  log_file: Log file
   log_highlighting: Colors and keywords
   log_highlighting_detail: The color and the words of each level, and text to highlight.
   configure: Configure…

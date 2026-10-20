@@ -33,7 +33,7 @@ pub fn claim(items: &[LaunchItem]) -> Claim {
         Ok(claim) => claim,
         Err(err) => {
             // Better two OxyPads than none.
-            eprintln!("oxypad: running without the single-instance check: {err:#}");
+            log::warn!("running without the single-instance check: {err:#}");
             Claim::Primary(None)
         }
     }

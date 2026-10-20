@@ -702,10 +702,12 @@ impl Workspace {
     /// another one loses its unsaved changes, so it asks first.
     fn should_close(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
         if windows::count(cx) <= 1 {
+            log::info!("closing the last window");
             if windows::quit_needs_confirmation(cx) {
                 windows::request_quit(cx);
                 return false;
             }
+            crate::diagnostics::watch_exit();
             windows::save_now(cx);
             return true;
         }

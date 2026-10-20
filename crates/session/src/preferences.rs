@@ -159,6 +159,8 @@ pub struct Preferences {
     pub log_max_lines: u32,
     /// How much of an existing log is shown when it is opened, in KiB.
     pub log_initial_kib: u32,
+    /// Writes a diagnostic log, for troubleshooting.
+    pub diagnostic_log: bool,
 }
 
 impl Default for Preferences {
@@ -184,6 +186,7 @@ impl Default for Preferences {
             log_highlighting: LogHighlighting::default(),
             log_max_lines: 200_000,
             log_initial_kib: 2048,
+            diagnostic_log: false,
         }
     }
 }

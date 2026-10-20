@@ -8,7 +8,7 @@
 
 use std::{
     sync::{Arc, Mutex},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use futures::{StreamExt, channel::mpsc::UnboundedReceiver};
@@ -21,6 +21,8 @@ use crate::{
 };
 
 const AUTOSAVE_INTERVAL: Duration = Duration::from_secs(2);
+/// Autosaves that take longer are noted in the diagnostic log.
+const SLOW_AUTOSAVE: Duration = Duration::from_millis(100);
 /// How far each new window is moved from the one before, so none hides another.
 const CASCADE: Pixels = px(28.);
 
@@ -56,15 +58,24 @@ pub fn init(launch: Vec<LaunchItem>, cx: &mut App) {
     match SessionStore::default_location() {
         Ok(mut store) => {
             if preferences::get(cx).restore_session {
+                let started = Instant::now();
                 match store.load() {
-                    Ok(Some(loaded)) => session = loaded,
+                    Ok(Some(loaded)) => {
+                        session = loaded;
+                        log::info!(
+                            "restored {} window(s), {} tab(s) in {:?}",
+                            session.windows.len(),
+                            session.tabs().count(),
+                            started.elapsed()
+                        );
+                    }
                     Ok(None) => {}
-                    Err(err) => eprintln!("oxypad: could not restore the session: {err:#}"),
+                    Err(err) => log::error!("could not restore the session: {err:#}"),
                 }
             }
             windows.store = Some(Arc::new(Mutex::new(store)));
         }
-        Err(err) => eprintln!("oxypad: sessions are disabled: {err:#}"),
+        Err(err) => log::warn!("sessions are disabled: {err:#}"),
     }
     for tab in session.tabs() {
         windows.next_tab_id = windows.next_tab_id.max(tab.id + 1);
@@ -91,7 +102,10 @@ pub fn init(launch: Vec<LaunchItem>, cx: &mut App) {
     })
     .detach();
     cx.on_app_quit(|cx| {
+        crate::diagnostics::watch_exit();
+        log::info!("quitting: saving the session");
         save_now(cx);
+        log::info!("quitting: OxyPad is done, GPUI tears down the app");
         async {}
     })
     .detach();
@@ -99,7 +113,9 @@ pub fn init(launch: Vec<LaunchItem>, cx: &mut App) {
         let windows = cx.global_mut::<Windows>();
         windows.open.retain(|window| window.handle.window_id() != closed);
         windows.changed = true;
+        log::info!("window closed, {} left", windows.open.len());
         if windows.open.is_empty() {
+            crate::diagnostics::watch_exit();
             cx.quit();
         }
     })
@@ -142,7 +158,7 @@ pub fn open(content: WindowSession, launch: Vec<LaunchItem>, near: Option<Bounds
             windows.open.push(OpenWindow { handle, workspace: workspace.downgrade() });
             windows.changed = true;
         }
-        Err(err) => eprintln!("oxypad: could not open a window: {err:#}"),
+        Err(err) => log::error!("could not open a window: {err:#}"),
     }
 }
 
@@ -253,8 +269,12 @@ fn autosave(cx: &mut App) {
         return;
     }
     cx.background_spawn(async move {
+        let started = Instant::now();
         if let Err(err) = store.lock().unwrap().save(&session) {
-            eprintln!("oxypad: autosave failed: {err:#}");
+            log::error!("autosave failed: {err:#}");
+        }
+        if started.elapsed() > SLOW_AUTOSAVE {
+            log::info!("slow autosave: {} in {:?}", describe(&session), started.elapsed());
         }
     })
     .detach();
@@ -263,14 +283,37 @@ fn autosave(cx: &mut App) {
 /// Writes the session now, before quitting or closing the last window.
 pub fn save_now(cx: &mut App) {
     let Some(store) = cx.global::<Windows>().store.clone() else { return };
+    let started = Instant::now();
     let session = session(cx);
     if session_would_be_lost(&session, cx) {
         return;
     }
-    if let Err(err) = store.lock().unwrap().save(&session) {
-        eprintln!("oxypad: saving the session failed: {err:#}");
+    let gathered = started.elapsed();
+    // Waits for an autosave still writing.
+    let mut store = store.lock().unwrap();
+    let locked = started.elapsed();
+    if let Err(err) = store.save(&session) {
+        log::error!("saving the session failed: {err:#}");
     }
+    log::info!(
+        "saved the session: {}; gathered in {gathered:?}, waited for autosave {:?}, total {:?}",
+        describe(&session),
+        locked - gathered,
+        started.elapsed()
+    );
     cx.global_mut::<Windows>().changed = false;
+}
+
+/// The size of a session, for the diagnostic log.
+fn describe(session: &Session) -> String {
+    let unsaved: Vec<usize> = session.tabs().filter_map(|tab| tab.unsaved_text.as_ref().map(String::len)).collect();
+    format!(
+        "{} window(s), {} tab(s), {} with unsaved text ({} KiB)",
+        session.windows.len(),
+        session.tabs().count(),
+        unsaved.len(),
+        unsaved.iter().sum::<usize>() / 1024
+    )
 }
 
 /// With sessions on, a session without windows only happens after the last
@@ -297,7 +340,9 @@ pub fn quit_needs_confirmation(cx: &App) -> bool {
 /// would be lost.
 pub fn request_quit(cx: &mut App) {
     let dirty = changes_lost_on_quit(cx);
+    log::info!("quit requested; {dirty} tab(s) would lose changes");
     if dirty == 0 {
+        crate::diagnostics::watch_exit();
         save_now(cx);
         cx.quit();
         return;

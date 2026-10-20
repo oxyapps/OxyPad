@@ -487,7 +487,7 @@ mod platform {
             if answer.await == Ok(0)
                 && let Err(err) = lp(&job)
             {
-                eprintln!("oxypad: printing failed: {err:#}");
+                log::error!("printing failed: {err:#}");
             }
         })
         .detach();

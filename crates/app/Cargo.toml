@@ -19,6 +19,8 @@ dirs.workspace = true
 # Already in the build through GPUI.
 futures = { version = "0.3", default-features = false, features = ["std"] }
 gpui-kit = "=0.8.0"
+# The diagnostic log (src/diagnostics.rs). Already in the build through GPUI.
+log = "0.4"
 oxypad-core.workspace = true
 oxypad-lint.workspace = true
 oxypad-session.workspace = true

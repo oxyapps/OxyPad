@@ -37,7 +37,7 @@ pub fn open(job: PrintJob, setup: PageSetup, print: impl FnOnce(PrintJob) + 'sta
         preview
     });
     if let Err(err) = opened {
-        eprintln!("oxypad: could not open the print preview: {err:#}");
+        log::error!("could not open the print preview: {err:#}");
     }
 }
 

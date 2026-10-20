@@ -59,7 +59,7 @@ pub fn init(cx: &mut App) {
             preferences::apply_appearance(None, cx);
         })
     {
-        eprintln!("oxypad: custom themes are disabled: {err:#}");
+        log::warn!("custom themes are disabled: {err:#}");
     }
 }
 
@@ -78,7 +78,7 @@ fn add_built_in(cx: &mut App) -> bool {
     let registry = ThemeRegistry::global_mut(cx);
     for file in missing {
         if let Err(err) = registry.load_themes_from_str(file) {
-            eprintln!("oxypad: a built-in theme is invalid: {err:#}");
+            log::error!("a built-in theme is invalid: {err:#}");
         }
     }
     true

@@ -12,6 +12,7 @@ i18n!("locales", fallback = "en");
 mod actions;
 mod assets;
 mod compare_tab;
+mod diagnostics;
 mod editor_tab;
 mod i18n;
 mod instance;
@@ -34,15 +35,23 @@ use crate::{
 };
 
 const USAGE: &str = "\
-Usage: oxypad [FILE]... [-f LOG]...
+Usage: oxypad [FILE]... [-f LOG]... [--log]
 
   FILE          open FILE in an editor tab
   -f, --follow  follow LOG read-only, like `tail -f`
+  --log         write a diagnostic log (oxypad.log in the data folder);
+                quit OxyPad first, or the running one gets the files
   -V, --version show the version
   -h, --help    show this help";
 
-fn parse_args() -> Vec<LaunchItem> {
+struct Args {
+    items: Vec<LaunchItem>,
+    log: bool,
+}
+
+fn parse_args() -> Args {
     let mut items = Vec::new();
+    let mut log = false;
     let mut args = std::env::args_os().skip(1);
     while let Some(arg) = args.next() {
         match arg.to_str() {
@@ -54,6 +63,7 @@ fn parse_args() -> Vec<LaunchItem> {
                 println!("OxyPad {}", env!("CARGO_PKG_VERSION"));
                 std::process::exit(0);
             }
+            Some("--log") => log = true,
             Some("-f" | "--follow") => match args.next() {
                 Some(path) => items.push(LaunchItem { path: PathBuf::from(path), follow: true }),
                 None => {
@@ -66,14 +76,18 @@ fn parse_args() -> Vec<LaunchItem> {
             _ => items.push(LaunchItem { path: PathBuf::from(arg), follow: false }),
         }
     }
-    items
+    Args { items, log }
 }
 
 fn main() {
-    let launch = parse_args();
+    let Args { items: launch, log } = parse_args();
+    diagnostics::init(log);
     let listener = match instance::claim(&launch) {
         instance::Claim::Primary(listener) => listener,
-        instance::Claim::Forwarded => return,
+        instance::Claim::Forwarded => {
+            log::info!("handed {} file(s) to the running OxyPad", launch.len());
+            return;
+        }
     };
     // Files from later launches, and on macOS from Finder and the Dock.
     let (opened, received) = futures::channel::mpsc::unbounded();
@@ -99,5 +113,8 @@ fn main() {
         windows::init(launch, cx);
         windows::receive(received, cx);
         cx.activate(true);
+        log::info!("started");
     });
+    // Only Windows and Linux get here: macOS ends the process itself.
+    log::info!("event loop ended and the app was torn down");
 }

@@ -222,8 +222,12 @@ settings:
   terminal_auto_named: Automático (%{name})
   terminal_custom: Comando personalizado
   terminal_command: Comando personalizado
-  terminal_command_detail: "Usado quando Comando personalizado está escolhido. {dir} é a pasta, por exemplo %{example}"
+  terminal_command_detail: "{dir} é trocado pela pasta."
   terminal_footer: Abrir no Terminal, no menu de uma aba, abre a pasta do arquivo dela.
+  troubleshooting: Solução de problemas
+  diagnostic_log: Log de diagnóstico
+  diagnostic_log_detail: "Registra o que o OxyPad faz e quanto tempo leva. Também ativado com: oxypad --log"
+  log_file: Arquivo de log
   log_highlighting: Cores e palavras-chave
   log_highlighting_detail: A cor e as palavras de cada nível, e textos para realçar.
   configure: Configurar…
