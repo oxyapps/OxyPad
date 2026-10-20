@@ -46,8 +46,8 @@ toolbar:
   tail_on: "Tail is on: click to stop following and edit"
   tail_off: "Tail is off: click to follow this file live (read-only)"
   compare: Compare
-  compare_tooltip: Compare with another tab
-  compare_with: Compare the current tab with
+  compare_tooltip: Compare with another file
+  compare_with: Compare this file with
   previous_difference: Previous difference
   next_difference: Next difference
   compare_again: Compare again
@@ -57,6 +57,35 @@ tabs:
   # Name of a new document that was never saved; Notepad++ style.
   untitled: new %{number}
   new_tab: New tab
+
+# The menu of a tab (right click).
+tab_menu:
+  save: Save
+  save_as: Save As…
+  close: Close
+  pin: Pin Tab
+  unpin: Unpin Tab
+  rename: Rename…
+  rename_title: Rename Tab
+  rename_button: Rename
+  read_only: Read-Only
+  show_in_finder: Show in Finder
+  show_in_explorer: Show in File Explorer
+  show_in_folder: Open Containing Folder
+  copy: Copy to Clipboard
+  copy_folder: Folder Path
+  copy_file_name: File Name
+  copy_full_path: Full Path
+  color: Tab Color
+  no_color: None
+  red: Red
+  yellow: Yellow
+  green: Green
+  cyan: Cyan
+  blue: Blue
+  magenta: Magenta
+  move_to_start: Move to Start
+  move_to_end: Move to End
 
 status:
   untitled: Untitled
@@ -98,7 +127,7 @@ dialog:
 notification:
   could_not_follow: "Could not follow %{path}: %{error}"
   save_before_following: Save the file before following it.
-  compared_tab_closed: One of the compared tabs was closed.
+  compared_tab_closed: One of the compared files was closed.
 
 about:
   version: Version %{version}

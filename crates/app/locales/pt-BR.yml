@@ -44,8 +44,8 @@ toolbar:
   tail_on: "Tail ligado: clique para parar de acompanhar e editar"
   tail_off: "Tail desligado: clique para acompanhar este arquivo ao vivo (somente leitura)"
   compare: Comparar
-  compare_tooltip: Comparar com outra aba
-  compare_with: Comparar a aba atual com
+  compare_tooltip: Comparar com outro arquivo
+  compare_with: Comparar este arquivo com
   previous_difference: Diferença anterior
   next_difference: Próxima diferença
   compare_again: Comparar de novo
@@ -54,6 +54,34 @@ toolbar:
 tabs:
   untitled: novo %{number}
   new_tab: Nova aba
+
+tab_menu:
+  save: Salvar
+  save_as: Salvar Como…
+  close: Fechar
+  pin: Fixar Aba
+  unpin: Desafixar Aba
+  rename: Renomear…
+  rename_title: Renomear Aba
+  rename_button: Renomear
+  read_only: Somente Leitura
+  show_in_finder: Mostrar no Finder
+  show_in_explorer: Mostrar no Explorador de Arquivos
+  show_in_folder: Abrir Pasta
+  copy: Copiar para a Área de Transferência
+  copy_folder: Caminho da Pasta
+  copy_file_name: Nome do Arquivo
+  copy_full_path: Caminho Completo
+  color: Cor da Aba
+  no_color: Nenhuma
+  red: Vermelho
+  yellow: Amarelo
+  green: Verde
+  cyan: Ciano
+  blue: Azul
+  magenta: Magenta
+  move_to_start: Mover para o Início
+  move_to_end: Mover para o Fim
 
 status:
   untitled: Sem título
@@ -95,7 +123,7 @@ dialog:
 notification:
   could_not_follow: "Não foi possível acompanhar %{path}: %{error}"
   save_before_following: Salve o arquivo antes de acompanhá-lo.
-  compared_tab_closed: Uma das abas comparadas foi fechada.
+  compared_tab_closed: Um dos arquivos comparados foi fechado.
 
 about:
   version: Versão %{version}

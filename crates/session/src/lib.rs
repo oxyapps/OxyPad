@@ -38,6 +38,22 @@ pub enum TabKind {
     Tail,
 }
 
+/// A color the user gave a tab, from the theme's palette.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TabColor {
+    Red,
+    Yellow,
+    Green,
+    Cyan,
+    Blue,
+    Magenta,
+}
+
+impl TabColor {
+    pub const ALL: [Self; 6] = [Self::Red, Self::Yellow, Self::Green, Self::Cyan, Self::Blue, Self::Magenta];
+}
+
 /// One tab as it was when the session was saved.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TabSnapshot {
@@ -53,6 +69,14 @@ pub struct TabSnapshot {
     /// Tail tabs: whether the view sticks to the end of the log.
     #[serde(default)]
     pub follow: bool,
+    /// Kept at the left of the tab bar, with the other pinned tabs.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub pinned: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<TabColor>,
+    /// Edit tabs: the text cannot be changed until this is turned off.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub read_only: bool,
     /// Text not yet saved to `path` (or the whole text of an untitled tab).
     /// Stored in `backups/<id>.txt`, never inside `session.json`.
     #[serde(skip)]
@@ -169,6 +193,10 @@ impl SessionStore {
     }
 }
 
+fn is_false(value: &bool) -> bool {
+    !value
+}
+
 fn hash(text: &str) -> u64 {
     let mut hasher = DefaultHasher::new();
     text.hash(&mut hasher);
@@ -205,8 +233,11 @@ mod tests {
                     kind: TabKind::Tail,
                     path: Some("/var/log/system.log".into()),
                     follow: true,
+                    pinned: true,
+                    color: Some(TabColor::Cyan),
                     ..Default::default()
                 },
+                TabSnapshot { id: 3, path: Some("/etc/hosts".into()), read_only: true, ..Default::default() },
             ],
             active: 1,
         };
@@ -215,6 +246,15 @@ mod tests {
         let loaded = SessionStore::at(dir.path()).load().unwrap().unwrap();
 
         assert_eq!(loaded, session);
+    }
+
+    #[test]
+    fn reads_sessions_saved_before_pinned_tabs_and_colors() {
+        let dir = tempfile::tempdir().unwrap();
+        let json = r#"{"version":1,"tabs":[{"id":1,"kind":"edit","path":null,"title":"new 1","cursor":[0,0]}],"active":0}"#;
+        fs::write(dir.path().join(SESSION_FILE), json).unwrap();
+        let tab = &SessionStore::at(dir.path()).load().unwrap().unwrap().tabs[0];
+        assert!(!tab.pinned && !tab.read_only && tab.color.is_none());
     }
 
     #[test]

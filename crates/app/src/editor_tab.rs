@@ -23,6 +23,8 @@ pub struct EditorTab {
     editor: Entity<EditorState>,
     dirty: bool,
     soft_wrap: bool,
+    /// Editing is locked; the text can still be saved, searched and copied.
+    read_only: bool,
     /// The cursor the status bar last showed.
     cursor: Position,
     _subscriptions: Vec<Subscription>,
@@ -81,6 +83,7 @@ impl EditorTab {
             editor,
             dirty,
             soft_wrap: preferences.wrap_lines,
+            read_only: false,
             cursor: Position::default(),
             _subscriptions,
         }
@@ -102,9 +105,34 @@ impl EditorTab {
         self.dirty
     }
 
-    /// An untitled tab nobody has typed into yet; opening a file replaces it.
+    /// An untitled tab nobody has typed into or renamed yet; opening a file
+    /// replaces it.
     pub fn is_pristine(&self, cx: &App) -> bool {
-        self.document.path().is_none() && !self.dirty && self.editor.read(cx).text().len() == 0
+        self.document.path().is_none()
+            && !self.dirty
+            && self.untitled_name.starts_with("new ")
+            && self.editor.read(cx).text().len() == 0
+    }
+
+    pub fn is_untitled(&self) -> bool {
+        self.document.path().is_none()
+    }
+
+    /// Renames an untitled tab; tabs with a file are renamed by Save As.
+    pub fn rename(&mut self, name: SharedString, cx: &mut Context<Self>) {
+        if self.is_untitled() {
+            self.untitled_name = name;
+            cx.notify();
+        }
+    }
+
+    pub fn is_read_only(&self) -> bool {
+        self.read_only
+    }
+
+    pub fn set_read_only(&mut self, read_only: bool, cx: &mut Context<Self>) {
+        self.read_only = read_only;
+        cx.notify();
     }
 
     pub fn title(&self) -> SharedString {
@@ -240,13 +268,16 @@ impl EditorTab {
             title: self.untitled_name.to_string(),
             cursor: (cursor.line, cursor.character),
             follow: false,
+            read_only: self.read_only,
             unsaved_text: (self.dirty || self.document.path().is_none()).then(|| self.text(cx)),
+            // Pinning and the color belong to the workspace, which fills them in.
+            ..Default::default()
         }
     }
 }
 
 impl Render for EditorTab {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-        Editor::new(&self.editor).bordered(false).h_full()
+        Editor::new(&self.editor).bordered(false).readonly(self.read_only).h_full()
     }
 }

@@ -1,5 +1,8 @@
 use std::{
+    cell::Cell,
+    collections::HashMap,
     path::{Path, PathBuf},
+    rc::Rc,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -13,7 +16,6 @@ use gpui_kit::{
         menu::AppMenuBar,
         notification::Notification,
         status_bar::StatusBar,
-        tab::{Tab, TabBar},
         v_flex,
     },
     prelude::FluentBuilder,
@@ -31,7 +33,10 @@ use crate::{
     preferences::{self, AppPreferences},
 };
 
+mod tab_bar;
 mod toolbar;
+
+use tab_bar::TabMeta;
 
 const AUTOSAVE_INTERVAL: Duration = Duration::from_secs(2);
 
@@ -70,6 +75,15 @@ impl TabView {
 
     fn is_dirty(&self, cx: &App) -> bool {
         matches!(self, Self::Editor(tab) if tab.read(cx).is_dirty())
+    }
+
+    /// The file the tab shows, if any.
+    fn path(&self, cx: &App) -> Option<PathBuf> {
+        match self {
+            Self::Editor(tab) => tab.read(cx).path().map(Path::to_path_buf),
+            Self::Log(tab) => Some(tab.read(cx).path().to_path_buf()),
+            Self::Compare(_) => None,
+        }
     }
 
     fn is_open_at(&self, path: &Path, follow: bool, cx: &App) -> bool {
@@ -127,6 +141,8 @@ impl Global for MainWorkspace {}
 
 pub struct Workspace {
     tabs: Vec<TabView>,
+    /// Pinning and color of each tab, by id.
+    meta: HashMap<u64, TabMeta>,
     active: usize,
     next_id: u64,
     next_untitled: usize,
@@ -139,6 +155,10 @@ pub struct Workspace {
     quit_confirmed: bool,
     /// A file-changed-on-disk question is on screen.
     asking_external_change: bool,
+    /// The tab last right-clicked, for the tab context menu.
+    context_tab: Rc<Cell<Option<u64>>>,
+    /// Enter in the rename dialog's field.
+    rename_subscription: Option<Subscription>,
     _autosave: Task<()>,
     _subscriptions: Vec<Subscription>,
 }
@@ -152,6 +172,7 @@ impl Workspace {
     ) -> Self {
         let mut this = Self {
             tabs: Vec::new(),
+            meta: HashMap::new(),
             active: 0,
             next_id: 1,
             next_untitled: 1,
@@ -162,6 +183,8 @@ impl Workspace {
             window_title: SharedString::default(),
             quit_confirmed: false,
             asking_external_change: false,
+            context_tab: Rc::default(),
+            rename_subscription: None,
             _autosave: Task::ready(()),
             _subscriptions: Vec::new(),
         };
@@ -238,6 +261,7 @@ impl Workspace {
             if let Some(number) = snapshot.title.strip_prefix("new ").and_then(|n| n.parse::<usize>().ok()) {
                 self.next_untitled = self.next_untitled.max(number + 1);
             }
+            let (id, meta) = (snapshot.id, TabMeta { pinned: snapshot.pinned, color: snapshot.color });
             let tab = match snapshot.kind {
                 TabKind::Edit => self.restore_editor(snapshot, window, cx),
                 TabKind::Tail => snapshot
@@ -246,10 +270,12 @@ impl Workspace {
                     .map(TabView::Log),
             };
             if let Some(tab) = tab {
+                self.meta.insert(id, meta);
                 self.push_tab(tab, cx);
             }
         }
         self.active = session.active.min(self.tabs.len().saturating_sub(1));
+        self.sort_pinned_first(cx);
     }
 
     fn restore_editor(
@@ -279,7 +305,10 @@ impl Workspace {
         let text = snapshot.unsaved_text.unwrap_or(disk_text);
         let title: SharedString = snapshot.title.into();
         let tab = cx.new(|cx| EditorTab::new(snapshot.id, title, document, text, dirty, window, cx));
-        tab.update(cx, |tab, cx| tab.set_cursor(snapshot.cursor, window, cx));
+        tab.update(cx, |tab, cx| {
+            tab.set_cursor(snapshot.cursor, window, cx);
+            tab.set_read_only(snapshot.read_only, cx);
+        });
         Some(TabView::Editor(tab))
     }
 
@@ -352,7 +381,8 @@ impl Workspace {
         };
         self.push_tab(tab, cx);
         if replace {
-            self.tabs.remove(self.active);
+            let removed = self.tabs.remove(self.active);
+            self.meta.remove(&removed.id(cx));
         }
         self.activate(self.tabs.len() - 1, window, cx);
     }
@@ -367,6 +397,7 @@ impl Workspace {
     fn remove_tab(&mut self, id: u64, window: &mut Window, cx: &mut Context<Self>) {
         let Some(ix) = self.tabs.iter().position(|tab| tab.id(cx) == id) else { return };
         self.tabs.remove(ix);
+        self.meta.remove(&id);
         if self.tabs.is_empty() {
             self.new_untitled(window, cx);
             return;
@@ -727,7 +758,16 @@ impl Workspace {
             return Session::default();
         }
         Session {
-            tabs: self.tabs.iter().filter_map(|tab| tab.snapshot(cx)).collect(),
+            tabs: self
+                .tabs
+                .iter()
+                .filter_map(|tab| {
+                    let mut snapshot = tab.snapshot(cx)?;
+                    let meta = self.meta(snapshot.id);
+                    (snapshot.pinned, snapshot.color) = (meta.pinned, meta.color);
+                    Some(snapshot)
+                })
+                .collect(),
             active: self
                 .tabs
                 .iter()
@@ -923,48 +963,6 @@ impl Workspace {
         }
     }
 
-    fn render_tab_bar(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let tabs = self.tabs.iter().enumerate().map(|(ix, tab)| {
-            let id = tab.id(cx);
-            let dirty = tab.is_dirty(cx);
-            let icon = match tab {
-                TabView::Editor(_) => IconName::File,
-                TabView::Log(_) => IconName::Eye,
-                TabView::Compare(_) => IconName::Copy,
-            };
-            let label = if dirty { format!("{} ●", tab.title(cx)) } else { tab.title(cx).to_string() };
-            Tab::new()
-                .label(label)
-                .prefix(div().pl_2().child(icon))
-                .suffix(
-                    Button::new(("close-tab", id))
-                        .icon(IconName::Close)
-                        .ghost()
-                        .xsmall()
-                        .on_click(cx.listener(move |this, _, window, cx| {
-                            cx.stop_propagation();
-                            if let Some(ix) = this.tabs.iter().position(|tab| tab.id(cx) == id) {
-                                this.close_tab_at(ix, window, cx);
-                            }
-                        })),
-                )
-                .on_click(cx.listener(move |this, _, window, cx| this.activate(ix, window, cx)))
-        });
-
-        TabBar::new("tabs")
-            .small()
-            .selected_index(self.active)
-            .children(tabs)
-            .suffix(
-                Button::new("new-tab")
-                    .icon(IconName::Plus)
-                    .ghost()
-                    .xsmall()
-                    .tooltip(t!("tabs.new_tab"))
-                    .on_click(cx.listener(|this, _, window, cx| this.new_untitled(window, cx))),
-            )
-    }
-
     fn render_status_bar(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let item = |text: SharedString| div().text_xs().child(text);
         let mut bar = StatusBar::new();
@@ -976,6 +974,7 @@ impl Workspace {
                 let path = document.path().map_or_else(|| t!("status.untitled").to_string(), display_path);
                 bar = bar
                     .left(item(path.into()))
+                    .when(tab.is_read_only(), |bar| bar.right(item(t!("status.read_only").into())))
                     .right(item(t!("status.position", line = cursor.line + 1, column = cursor.character + 1).to_string().into()))
                     .right(item(tab.language(cx)))
                     .right(item(document.encoding().to_string().into()))

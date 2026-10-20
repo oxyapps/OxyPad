@@ -6,6 +6,9 @@ Notepad++ and MacPad++. Prototype stage.
 - Tabs, syntax highlighting and folding for 40 languages with Lexilla, the
   lexers of Scintilla and Notepad++, find/replace
 - Toolbar whose buttons enable themselves for the active tab
+- Tab menu (right click): close, pin, rename, read-only, show in Finder/Explorer,
+  copy the folder, name or full path, six tab colors, move to start/end, save;
+  drag tabs to reorder them
 - Side-by-side comparison of two open tabs: 50/50 columns with a draggable
   divider (double-click resets it), both columns scroll together, each scrolls
   sideways on its own, changed lines and words are highlighted, F7 jumps

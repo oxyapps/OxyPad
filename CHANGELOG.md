@@ -14,6 +14,12 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Notepad++), find and replace, word wrap, and files kept in their own encoding (UTF-8,
   UTF-16, legacy code pages) and line endings.
 - Sessions like Notepad++: open tabs and unsaved changes survive quitting and crashes.
+- A menu on each tab (right click): close, pin to the left of the bar, rename (untitled
+  tabs get a new name, saved files are saved under one), read-only, show the file in
+  Finder or File Explorer, copy its folder, name or full path, give the tab one of six
+  colors, move it to the start or end, and save it when it has unsaved changes. Pinned
+  tabs, colors and read-only tabs are kept in the session. Tabs can be dragged to a
+  new place in the bar.
 - Tail mode: any saved file can be followed live and read-only, like `tail -F`. It
   survives truncation and log rotation, colors error and warning lines, and pauses
   while you scroll up. It never keeps the program writing the log from writing,

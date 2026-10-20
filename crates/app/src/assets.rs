@@ -2,11 +2,15 @@ use std::borrow::Cow;
 
 use gpui_kit::{AssetSource, Result, SharedString};
 
-// Lucide icons used by the toolbar beyond the component library's default
+// Lucide icons used by the toolbar and the tab menu beyond the component library's default
 // set. Only these SVGs are embedded.
 gpui_kit::assets::icon_assets!(
     pub ToolbarIcons,
-    [FilePlus, Save, SavePen, TextWrap, ScrollText, Columns2]
+    [
+        FilePlus, Save, SavePen, TextWrap, ScrollText, Columns2, // toolbar
+        Pin, PinOff, Lock, X, PenLine, FolderOpen, ClipboardCopy, Palette, Circle, // tab menu
+        ArrowLeftToLine, ArrowRightToLine,
+    ]
 );
 
 /// The component library's icons plus [`ToolbarIcons`].
