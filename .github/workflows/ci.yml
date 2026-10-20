@@ -1,0 +1,28 @@
+# Runs the tests of the platform-independent crates (documents, sessions,
+# log following) on every platform OxyPad targets, so platform-specific
+# behavior such as Windows file sharing is checked where it applies.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, macos-15, ubuntu-24.04]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Test
+        run: cargo test -p oxypad-core -p oxypad-session -p oxypad-tail
+      - name: Clippy
+        run: cargo clippy -p oxypad-core -p oxypad-session -p oxypad-tail --all-targets -- -D warnings
