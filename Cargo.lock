@@ -4413,7 +4413,7 @@ dependencies = [
 
 [[package]]
 name = "oxypad"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "dirs 6.0.0",
@@ -4440,7 +4440,7 @@ dependencies = [
 
 [[package]]
 name = "oxypad-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "chardetng",
@@ -4451,7 +4451,7 @@ dependencies = [
 
 [[package]]
 name = "oxypad-lint"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "roxmltree 0.21.1",
  "saphyr-parser",
@@ -4462,7 +4462,7 @@ dependencies = [
 
 [[package]]
 name = "oxypad-session"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "dirs 6.0.0",
@@ -4474,7 +4474,7 @@ dependencies = [
 
 [[package]]
 name = "oxypad-syntax"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cc",
  "oxypad-core",
@@ -4482,7 +4482,7 @@ dependencies = [
 
 [[package]]
 name = "oxypad-tail"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "tempfile",
  "windows-sys 0.61.2",

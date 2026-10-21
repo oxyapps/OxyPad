@@ -7,6 +7,18 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-21
+
+### Changed
+
+- On Windows and Linux, OxyPad's icon shows beside the menus in the title bar.
+
+### Fixed
+
+- Closing the last window no longer crashes OxyPad. On Windows, where closing the window
+  is how you quit, OxyPad hung for several seconds while Windows reported the crash, and
+  the last two seconds of unsaved changes could be missing from the session.
+
 ## [0.1.0] - 2026-10-20
 
 ### Added
@@ -79,5 +91,6 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Settings ▸ General ▸ Troubleshooting or with `oxypad --log`: what OxyPad does and how
   long each step takes, such as saving the session and quitting.
 
-[Unreleased]: https://github.com/oxyapps/OxyPad/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/oxyapps/OxyPad/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/oxyapps/OxyPad/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/oxyapps/OxyPad/releases/tag/v0.1.0
