@@ -7,6 +7,13 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Option+Shift+drag (Alt+Shift+drag on Windows and Linux) selects a straight block, as
+  Notepad++ does: the block keeps its columns past the end of short lines, and typing
+  there fills those lines with spaces up to the block. Option+drag still selects up to
+  the end of each short line.
+
 ## [0.2.0] - 2026-10-21
 
 ### Added

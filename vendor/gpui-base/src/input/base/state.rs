@@ -33,6 +33,7 @@ use super::{
     kind::InputModeKind,
     mask_pattern::normalize_number_input,
     mode::LayoutMode,
+    selection::CursorId,
     undo_manager::{EditIntent, UndoManager},
 };
 use crate::actions::{SelectDown, SelectLeft, SelectRight, SelectUp};
@@ -331,6 +332,24 @@ impl ColumnarPoint {
     }
 }
 
+/// How far past the end of short rows a straight block selection reaches.
+///
+/// An Alt+Shift drag keeps the block a rectangle, as Notepad++ does: a row too short
+/// for it still has its caret and highlight at the block's columns, beyond its last
+/// character. The text has nothing there, so each row's selection stays clipped to its
+/// end and this records how many columns past that end its start and end sit, to paint
+/// them there and, once typed into, to fill the gap with spaces.
+///
+/// It describes the selections exactly as the block left them. Any edit or any change
+/// to the selections makes it stale, and a stale one is ignored.
+#[derive(Debug, Clone)]
+pub(super) struct VirtualSpace {
+    document_revision: u64,
+    /// Each selection, sorted by id, with the columns past its row's end at which its
+    /// start and its end sit.
+    rows: Vec<(CursorSelection, usize, usize)>,
+}
+
 /// The document and selections a paste was asked to replace, taken when the
 /// `Paste` action ran so a clipboard read that resolves later can tell
 /// whether it still applies. See [`InputBaseState::paste_target`].
@@ -469,6 +488,11 @@ pub struct InputBaseState<M: InputModeKind> {
     pub(super) selecting: bool,
     /// Anchor point of an in-progress columnar (block) selection.
     pub(super) column_select_start: Option<ColumnarPoint>,
+    /// Whether the block in progress stays a rectangle past the end of short rows
+    /// (Alt+Shift) instead of clipping each row to its end (Alt).
+    pub(super) column_select_virtual: bool,
+    /// The columns the last straight block reaches past the end of short rows.
+    virtual_space: Option<VirtualSpace>,
     /// The selection a long press made, with its handles and edit menu.
     pub(super) touch_selection: super::touch::TouchSelection,
     pub(crate) disabled: bool,
@@ -910,6 +934,8 @@ impl<M: InputModeKind> InputBaseState<M> {
             last_bounds: None,
             last_selected_range: None,
             column_select_start: None,
+            column_select_virtual: false,
+            virtual_space: None,
             last_cursor: None,
             scroll_handle: ScrollHandle::new(),
             scroll_bounce: crate::ScrollBounce::enabled_by_default(),
@@ -1879,14 +1905,47 @@ impl<M: InputModeKind> InputBaseState<M> {
             return;
         }
         let cursors: Vec<CursorSelection> = self.selections.iter().copied().collect();
-        let intent = if cursors.iter().all(|sel| sel.is_empty()) {
+
+        // A straight block has rows that reach past their end. Deleting a block
+        // that selects something removes the text it covers and leaves every
+        // caret on the block's left edge; Backspace in a block of bare carets
+        // steps the ones past their row's end back a column; Delete leaves them
+        // where they are. Other deletions forget the virtual columns.
+        let virtual_columns: Vec<(usize, usize)> = {
+            let virtual_columns = self.virtual_columns();
+            cursors.iter().map(|sel| virtual_columns(sel)).collect()
+        };
+        let virtual_block = virtual_columns
+            .iter()
+            .any(|&(start, end)| start > 0 || end > 0);
+        let block_selects = cursors
+            .iter()
+            .zip(&virtual_columns)
+            .any(|(sel, &(start, end))| !sel.is_empty() || end > start);
+        let virtual_block = virtual_block
+            && (block_selects
+                || matches!(
+                    collapsed_intent,
+                    EditIntent::Backspace | EditIntent::DeleteForward
+                ));
+        let mut virtual_after = Vec::new();
+
+        let intent = if cursors.iter().all(|sel| sel.is_empty()) && !block_selects {
             collapsed_intent
         } else {
             EditIntent::Atomic
         };
         let mut new_selections: Vec<CursorSelection> = Vec::with_capacity(cursors.len());
-        for sel in &cursors {
-            let range = if sel.is_empty() {
+        for (sel, &(virtual_start, _)) in cursors.iter().zip(&virtual_columns) {
+            let range = if virtual_block && (block_selects || virtual_start > 0) {
+                let columns = if !block_selects && collapsed_intent == EditIntent::Backspace {
+                    virtual_start - 1
+                } else {
+                    virtual_start
+                };
+                virtual_after.push((sel.id, columns));
+                sel.start..sel.end
+            } else if sel.is_empty() {
                 collapsed_target(self, sel.cursor_offset())
             } else {
                 sel.start..sel.end
@@ -1897,6 +1956,23 @@ impl<M: InputModeKind> InputBaseState<M> {
             selection.end = end;
             new_selections.push(selection);
         }
+
+        // Only carets past their row's end moved: nothing to delete, the block
+        // just narrows its virtual columns.
+        if virtual_block && new_selections.iter().all(|sel| sel.is_empty()) {
+            let rows = cursors
+                .iter()
+                .map(|sel| {
+                    let columns = Self::virtual_after_for(&virtual_after, sel);
+                    (*sel, columns, columns)
+                })
+                .collect();
+            self.set_virtual_space(rows);
+            self.pause_blink_cursor(cx);
+            cx.notify();
+            return;
+        }
+
         // Capture the user's selections before expanding or merging deletion
         // ranges. The edit ranges cannot reconstruct their original carets.
         self.undo_manager.begin_transaction_with(intent);
@@ -1912,7 +1988,29 @@ impl<M: InputModeKind> InputBaseState<M> {
         self.undo_manager
             .record_selections(cursors, self.selections.iter().copied().collect());
         self.undo_manager.commit_transaction();
+        if virtual_block {
+            let rows = self
+                .selections
+                .iter()
+                .map(|sel| {
+                    let columns = Self::virtual_after_for(&virtual_after, sel);
+                    (*sel, columns, columns)
+                })
+                .collect();
+            self.set_virtual_space(rows);
+        }
         self.pause_blink_cursor(cx);
+    }
+
+    /// The virtual columns a deletion left `selection`'s caret at.
+    fn virtual_after_for(
+        virtual_after: &[(CursorId, usize)],
+        selection: &CursorSelection,
+    ) -> usize {
+        virtual_after
+            .iter()
+            .find(|(id, _)| *id == selection.id)
+            .map_or(0, |&(_, columns)| columns)
     }
 
     /// Decide pairing against the pre-edit text, before an opening quote can
@@ -2033,7 +2131,11 @@ impl<M: InputModeKind> InputBaseState<M> {
         // This is harmless when nothing upstream is bound to backspace. With multiple
         // cursors the others can still delete, so only the lone-cursor case
         // propagates.
-        if self.selections.is_single() && self.active_selection().is_empty() && self.cursor() == 0 {
+        if self.selections.is_single()
+            && self.active_selection().is_empty()
+            && self.cursor() == 0
+            && self.virtual_columns()(self.active_selection()) == (0, 0)
+        {
             cx.propagate();
             return;
         }
@@ -2499,6 +2601,7 @@ impl<M: InputModeKind> InputBaseState<M> {
         let (start_col, end_col) = (start_col.min(end_col), start_col.max(end_col));
 
         let mut new_selections = Vec::with_capacity(end_row - start_row + 1);
+        let mut virtual_rows = Vec::new();
         for row in start_row..=end_row {
             let sel_start = self
                 .display_map
@@ -2507,11 +2610,94 @@ impl<M: InputModeKind> InputBaseState<M> {
             let id = self.selections.generate_id();
             let sel_start = self.text.clip_offset(sel_start, Bias::Left);
             let sel_end = self.text.clip_offset(sel_end, Bias::Left);
-            new_selections.push(CursorSelection::new(id, sel_start, sel_end));
+            let selection = CursorSelection::new(id, sel_start, sel_end);
+            if self.column_select_virtual {
+                virtual_rows.push((
+                    selection,
+                    self.columns_short_of(sel_start, start_col),
+                    self.columns_short_of(sel_end, end_col),
+                ));
+            }
+            new_selections.push(selection);
         }
 
         self.selections.replace_all(new_selections);
+        self.set_virtual_space(virtual_rows);
         cx.notify();
+    }
+
+    /// The columns between `offset` and `column` on its display row when `offset` was
+    /// clipped to the end of its line, zero when the line reaches `column`.
+    fn columns_short_of(&self, offset: usize, column: usize) -> usize {
+        let line_end = self
+            .text
+            .line_end_offset(self.text.offset_to_point(offset).row);
+        let at_line_end = offset == line_end
+            || (offset + 1 == line_end && self.text.chars_at(offset).next() == Some('\r'));
+        if !at_line_end {
+            return 0;
+        }
+        column.saturating_sub(self.display_map.offset_to_wrap_display_point(offset).column)
+    }
+
+    /// Record the columns a straight block reaches past the end of its rows, as
+    /// `(selection, before start, before end)`. Rows that all reach their columns
+    /// leave nothing to record.
+    fn set_virtual_space(&mut self, mut rows: Vec<(CursorSelection, usize, usize)>) {
+        if rows.iter().all(|&(_, start, end)| start == 0 && end == 0) {
+            self.virtual_space = None;
+            return;
+        }
+        rows.sort_by_key(|(selection, ..)| selection.id);
+        self.virtual_space = Some(VirtualSpace {
+            document_revision: self.document_revision,
+            rows,
+        });
+    }
+
+    /// The straight block's virtual columns, while they still describe the
+    /// selections.
+    fn current_virtual_space(&self) -> Option<&VirtualSpace> {
+        let space = self.virtual_space.as_ref()?;
+        let describes = |selection: &CursorSelection| {
+            space
+                .rows
+                .binary_search_by_key(&selection.id, |(row, ..)| row.id)
+                .is_ok_and(|ix| {
+                    let row = &space.rows[ix].0;
+                    (row.start, row.end, row.reversed)
+                        == (selection.start, selection.end, selection.reversed)
+                })
+        };
+        (space.document_revision == self.document_revision
+            && space.rows.len() == self.selections.len()
+            && self.selections.iter().all(describes))
+        .then_some(space)
+    }
+
+    /// Looks up how many columns past its row's end a selection's start and end
+    /// sit. Both are zero unless a straight block left them there.
+    pub(super) fn virtual_columns(&self) -> impl Fn(&CursorSelection) -> (usize, usize) + '_ {
+        let space = self.current_virtual_space();
+        move |selection| {
+            space
+                .and_then(|space| {
+                    let ix = space
+                        .rows
+                        .binary_search_by_key(&selection.id, |(row, ..)| row.id)
+                        .ok()?;
+                    let (_, start, end) = space.rows[ix];
+                    Some((start, end))
+                })
+                .unwrap_or((0, 0))
+        }
+    }
+
+    /// Whether typing must first fill some row of a straight block with spaces to
+    /// reach the block's columns.
+    fn has_virtual_padding(&self) -> bool {
+        self.current_virtual_space()
+            .is_some_and(|space| space.rows.iter().any(|&(_, start, _)| start > 0))
     }
 
     /// Resolve a columnar point to the display row it is on and the column it reaches,
@@ -2614,9 +2800,11 @@ impl<M: InputModeKind> InputBaseState<M> {
             if event.modifiers.alt
                 && (event.modifiers.shift || (cfg!(target_os = "linux") && event.modifiers.control))
             {
-                // Alt+Shift starts a block; Linux also accepts Ghostty's Ctrl+Alt.
+                // Alt+Shift starts a straight block that keeps its columns past
+                // the end of short rows; Linux also accepts Ghostty's Ctrl+Alt.
                 // Mark selecting so the drag handler extends the block.
                 self.column_select_start = Some(ColumnarPoint::new(offset, columns_past_line_end));
+                self.column_select_virtual = true;
                 self.selecting = true;
                 self.move_to_with_affinity(offset, None, line_end_affinity, cx);
                 return;
@@ -2625,6 +2813,7 @@ impl<M: InputModeKind> InputBaseState<M> {
                 // Keep click-to-add behavior, but use this press as the block
                 // anchor if the user continues dragging with the left button.
                 self.column_select_start = Some(ColumnarPoint::new(offset, columns_past_line_end));
+                self.column_select_virtual = false;
                 return;
             }
         }
@@ -3081,11 +3270,16 @@ impl<M: InputModeKind> InputBaseState<M> {
         if count > 1 && lines.len() == count {
             let mut selections: Vec<CursorSelection> = self.selections.iter().copied().collect();
             selections.sort_by_key(|sel| sel.start);
+            let virtual_columns = self.virtual_columns();
             let edits: Vec<(Range<usize>, String)> = selections
                 .iter()
                 .zip(lines)
-                .map(|(sel, line)| (sel.start..sel.end, line))
+                .map(|(sel, line)| {
+                    let padding = " ".repeat(virtual_columns(sel).0);
+                    (sel.start..sel.end, format!("{padding}{line}"))
+                })
                 .collect();
+            drop(virtual_columns);
             self.replace_text_in_ranges(&edits, window, cx);
         } else {
             self.replace_text_in_range_silent(None, &new_text, window, cx);
@@ -4403,16 +4597,32 @@ impl<M: InputModeKind> EntityInputHandler for InputBaseState<M> {
         }
 
         if self.is_multi_line() {
+            // A row of a straight block that ends short of the block's columns
+            // is filled with spaces up to them before the text goes in, even
+            // when it is the block's only row.
             let multi_cursor = range_utf16.is_none()
                 && self.ime_marked_range.is_none()
-                && !self.selections.is_single();
+                && (!self.selections.is_single()
+                    || (!new_text.is_empty() && self.has_virtual_padding()));
             if multi_cursor {
                 self.selections.merge_overlapping();
+                let virtual_columns = self.virtual_columns();
                 let mut edits: Vec<(Range<usize>, String)> = self
                     .selections
                     .iter()
-                    .map(|sel| (sel.start..sel.end, new_text.to_string()))
+                    .map(|sel| {
+                        let padding = if new_text.is_empty() {
+                            0
+                        } else {
+                            virtual_columns(sel).0
+                        };
+                        (
+                            sel.start..sel.end,
+                            format!("{}{new_text}", " ".repeat(padding)),
+                        )
+                    })
                     .collect();
+                drop(virtual_columns);
                 edits.sort_by_key(|(range, _)| range.start);
                 // One keystroke across several cursors is one batch, committed
                 // with the intent of the keystroke so a run of them coalesces
@@ -11528,6 +11738,125 @@ mod tests {
                 assert_eq!(ranges, vec![(1, 5), (8, 9)]);
             });
         });
+    }
+
+    /// Builds a straight (Alt+Shift) block between two columnar points.
+    fn build_straight_block<M: InputModeKind>(
+        cx: &mut VisualTestContext,
+        input: &Entity<InputBaseState<M>>,
+        start: ColumnarPoint,
+        end: ColumnarPoint,
+    ) {
+        cx.update(|window, cx| {
+            input.update(cx, |state, cx| {
+                state.focus(window, cx);
+                state.column_select_virtual = true;
+                state.build_columnar_selection(start, end, cx);
+                state.column_select_virtual = false;
+            });
+        });
+    }
+
+    #[gpui::test]
+    fn test_straight_block_keeps_its_columns_past_short_rows(cx: &mut TestAppContext) {
+        let view = multi_line(cx);
+        let mut cx = VisualTestContext::from_window(view.window_handle.into(), cx);
+        let input = view.input;
+
+        setup_cursors(&mut cx, &input, "abcdef\nab\na\nabcdef");
+        // Columns 3..5 from row 0 to row 3.
+        build_straight_block(
+            &mut cx,
+            &input,
+            ColumnarPoint::new(3, 0),
+            ColumnarPoint::new(17, 0),
+        );
+        input.read_with(&cx, |state, _| {
+            let virtual_columns = state.virtual_columns();
+            let rows: Vec<_> = state
+                .selections
+                .iter()
+                .map(|s| (s.start, s.end, virtual_columns(s)))
+                .collect();
+            assert_eq!(
+                rows,
+                vec![
+                    (3, 5, (0, 0)),
+                    (9, 9, (1, 3)),
+                    (11, 11, (2, 4)),
+                    (15, 17, (0, 0)),
+                ]
+            );
+        });
+
+        // Typing fills the short rows with spaces up to the block's left edge.
+        cx.simulate_keystrokes("x");
+        assert_cursors(&mut cx, &input, "abcx|f\nab x|\na  x|\nabcx|f");
+    }
+
+    #[gpui::test]
+    fn test_straight_block_of_carets_steps_back_in_virtual_space(cx: &mut TestAppContext) {
+        let view = multi_line(cx);
+        let mut cx = VisualTestContext::from_window(view.window_handle.into(), cx);
+        let input = view.input;
+
+        setup_cursors(&mut cx, &input, "abcdef\nab");
+        // A zero-width block at column 4: row 1 is two columns short.
+        build_straight_block(
+            &mut cx,
+            &input,
+            ColumnarPoint::new(4, 0),
+            ColumnarPoint::new(9, 2),
+        );
+        cx.simulate_keystrokes("backspace");
+        assert_cursors(&mut cx, &input, "abc|ef\nab|");
+        input.read_with(&cx, |state, _| {
+            let virtual_columns = state.virtual_columns();
+            let columns: Vec<_> = state
+                .selections
+                .iter()
+                .map(|s| virtual_columns(s))
+                .collect();
+            assert_eq!(columns, vec![(0, 0), (1, 1)]);
+        });
+        cx.simulate_keystrokes("x");
+        assert_cursors(&mut cx, &input, "abcx|ef\nab x|");
+    }
+
+    #[gpui::test]
+    fn test_deleting_a_straight_block_leaves_carets_on_its_edge(cx: &mut TestAppContext) {
+        let view = multi_line(cx);
+        let mut cx = VisualTestContext::from_window(view.window_handle.into(), cx);
+        let input = view.input;
+
+        setup_cursors(&mut cx, &input, "abcdef\nab");
+        build_straight_block(
+            &mut cx,
+            &input,
+            ColumnarPoint::new(3, 0),
+            ColumnarPoint::new(9, 3),
+        );
+        cx.simulate_keystrokes("backspace");
+        assert_cursors(&mut cx, &input, "abc|f\nab|");
+        cx.simulate_keystrokes("x");
+        assert_cursors(&mut cx, &input, "abcx|f\nab x|");
+    }
+
+    #[gpui::test]
+    fn test_moving_drops_the_straight_block_virtual_columns(cx: &mut TestAppContext) {
+        let view = multi_line(cx);
+        let mut cx = VisualTestContext::from_window(view.window_handle.into(), cx);
+        let input = view.input;
+
+        setup_cursors(&mut cx, &input, "abcdef\nab");
+        build_straight_block(
+            &mut cx,
+            &input,
+            ColumnarPoint::new(4, 0),
+            ColumnarPoint::new(9, 2),
+        );
+        cx.simulate_keystrokes("left x");
+        assert_cursors(&mut cx, &input, "abcx|def\nax|b");
     }
 
     #[gpui::test]

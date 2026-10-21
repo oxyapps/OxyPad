@@ -647,6 +647,7 @@ impl<M: InputModeKind> TextElement<M> {
         };
 
         let cursor_height = 0.85 * line_height;
+        let virtual_columns = state.virtual_columns();
 
         for selection in state.selections.iter() {
             let is_active = selection.id == active_id;
@@ -681,7 +682,16 @@ impl<M: InputModeKind> TextElement<M> {
             }
 
             let affinity = is_active && state.cursor_line_end_affinity;
-            let cursor_pos = caret_for(cursor_row, cursor, affinity);
+            let mut cursor_pos = caret_for(cursor_row, cursor, affinity);
+            // A caret a straight block left past its row's end sits that many
+            // spaces further right.
+            let (virtual_start, virtual_end) = virtual_columns(selection);
+            let virtual_caret = if selection.reversed {
+                virtual_start
+            } else {
+                virtual_end
+            };
+            cursor_pos.x += last_layout.space_width * virtual_caret as f32;
             let cursor_start = caret_for(sel_start_row, selected_range.start, false);
             let cursor_end = caret_for(sel_end_row, selected_range.end, false);
 
@@ -809,6 +819,51 @@ impl<M: InputModeKind> TextElement<M> {
         }
         builder.close();
         builder.build().ok()
+    }
+
+    /// Layout, as a Path, the `columns` past `line_end`, the end of a line,
+    /// where a straight block reaches beyond the text.
+    fn layout_virtual_range(
+        line_end: usize,
+        columns: Range<usize>,
+        last_layout: &LastLayout,
+        bounds: &Bounds<Pixels>,
+    ) -> Option<Path<Pixels>> {
+        let mut y = last_layout.visible_top;
+        for (&line_offset, line) in last_layout
+            .visible_line_byte_offsets
+            .iter()
+            .zip(last_layout.lines.iter())
+        {
+            let rows = line.wrapped_lines.len();
+            let line_len: usize = line.wrapped_lines.iter().map(|shaped| shaped.len).sum();
+            if line_offset + line_len != line_end {
+                y += last_layout.line_height * rows;
+                continue;
+            }
+            let shaped = line.wrapped_lines.last()?;
+            let indent = if rows > 1 { line.wrap_indent } else { px(0.) };
+            let end = last_layout.alignment_offset(line.longest_width) + indent + shaped.width;
+            let left = end + last_layout.space_width * columns.start as f32;
+            let right = end + last_layout.space_width * columns.end as f32;
+            let top = y + last_layout.line_height * (rows - 1);
+            let corners = [Corners {
+                top_left: point(left, top),
+                top_right: point(right, top),
+                bottom_left: point(left, top + last_layout.line_height),
+                bottom_right: point(right, top + last_layout.line_height),
+            }];
+            let points = frame_outline_points(&corners);
+            let origin = bounds.origin + point(last_layout.line_number_width, px(0.));
+            let mut builder = gpui::PathBuilder::fill();
+            builder.move_to(origin + *points.first()?);
+            for point in points.iter().skip(1) {
+                builder.line_to(origin + *point);
+            }
+            builder.close();
+            return builder.build().ok();
+        }
+        None
     }
 
     /// Project a buffer range through the visible (non-folded) shaped lines.
@@ -1013,10 +1068,23 @@ impl<M: InputModeKind> TextElement<M> {
 
         let active_id = state.active_selection().id;
         let mut paths = Vec::new();
+        let virtual_columns = state.virtual_columns();
 
         for selection in state.selections.iter() {
             let is_active = selection.id == active_id;
             let mut selected_range = *selection;
+
+            // The part of a straight block past its row's end has no text to
+            // project, so it is painted from the row's end.
+            let (virtual_start, virtual_end) = virtual_columns(selection);
+            if virtual_end > virtual_start && !state.masked {
+                paths.extend(Self::layout_virtual_range(
+                    selection.end,
+                    virtual_start..virtual_end,
+                    last_layout,
+                    bounds,
+                ));
+            }
 
             // IME composition replaces the active selection with a collapsed
             // caret, so it never paints a selection highlight.
