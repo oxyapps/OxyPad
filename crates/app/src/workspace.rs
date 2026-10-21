@@ -25,7 +25,7 @@ use gpui_kit::{
 };
 use oxypad_core::{Document, ExternalChange, language_for_path};
 use oxypad_tail::ResetReason;
-use oxypad_session::{TabKind, TabSnapshot, ThemePreference, WindowSession};
+use oxypad_session::{TabKind, TabSnapshot, ThemePreference, WindowPlacement, WindowSession};
 
 use crate::{
     actions::*,
@@ -45,7 +45,6 @@ use tab_bar::TabMeta;
 const EXTERNAL_CHANGE_INTERVAL: Duration = Duration::from_secs(2);
 
 const REPOSITORY_URL: &str = "https://github.com/oxyapps/OxyPad";
-const WEBSITE_URL: &str = "https://oxyapps.org";
 
 /// A file to open at launch, from the command line.
 pub struct LaunchItem {
@@ -150,6 +149,8 @@ pub struct Workspace {
     context_tab: Rc<Cell<Option<u64>>>,
     /// Enter in the rename dialog's field.
     rename_subscription: Option<Subscription>,
+    /// Where the window is on screen, kept for the session.
+    placement: WindowPlacement,
     _external_changes: Task<()>,
     _subscriptions: Vec<Subscription>,
 }
@@ -168,6 +169,7 @@ impl Workspace {
             asking_external_change: false,
             context_tab: Rc::default(),
             rename_subscription: None,
+            placement: windows::placement::current(window, cx),
             _external_changes: Task::ready(()),
             _subscriptions: Vec::new(),
         };
@@ -199,6 +201,13 @@ impl Workspace {
         window.on_window_should_close(cx, move |window, cx| {
             weak.update(cx, |this, cx| this.should_close(window, cx)).unwrap_or(true)
         });
+        this._subscriptions.push(cx.observe_window_bounds(window, |this, window, cx| {
+            let placement = windows::placement::current(window, cx);
+            if placement != this.placement {
+                this.placement = placement;
+                windows::mark_changed(cx);
+            }
+        }));
         this._subscriptions.push(cx.observe_window_appearance(window, |_, window, cx| {
             if preferences::get(cx).theme == ThemePreference::System {
                 preferences::apply_appearance(Some(window), cx);
@@ -763,6 +772,7 @@ impl Workspace {
                 .take(self.active)
                 .filter(|tab| !matches!(tab, TabView::Compare(_)))
                 .count(),
+            placement: Some(self.placement.clone()),
         }
     }
 
@@ -774,7 +784,7 @@ impl Workspace {
         }
         let Some(snapshot) = self.take_for_move(id, window, cx) else { return };
         let near = window.bounds();
-        cx.defer(move |cx| windows::open(WindowSession { tabs: vec![snapshot], active: 0 }, Vec::new(), Some(near), cx));
+        cx.defer(move |cx| windows::open(WindowSession { tabs: vec![snapshot], active: 0, placement: None }, Vec::new(), Some(near), cx));
     }
 
     /// Moves tab `id` to the window of `target`, like `move_to_new_window`.
@@ -820,7 +830,7 @@ impl Workspace {
     fn adopt(&mut self, snapshot: TabSnapshot, window: &mut Window, cx: &mut Context<Self>) {
         let id = snapshot.id;
         let count = self.tabs.len();
-        self.restore(WindowSession { tabs: vec![snapshot], active: 0 }, window, cx);
+        self.restore(WindowSession { tabs: vec![snapshot], active: 0, placement: None }, window, cx);
         if self.tabs.len() == count {
             return;
         }
@@ -991,8 +1001,7 @@ impl Workspace {
                             .gap_4()
                             .pt_1()
                             .text_sm()
-                            .child(Link::new("about-repository").href(REPOSITORY_URL).child("GitHub"))
-                            .child(Link::new("about-website").href(WEBSITE_URL).child("OxyApps.org")),
+                            .child(Link::new("about-repository").href(REPOSITORY_URL).child("GitHub")),
                     ),
             )
         });

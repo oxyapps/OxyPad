@@ -90,11 +90,30 @@ pub struct TabSnapshot {
     pub unsaved_text: Option<String>,
 }
 
-/// One window: its tabs, in order, and the one in front.
+/// One window: its tabs, in order, the one in front, and where it was.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WindowSession {
     pub tabs: Vec<TabSnapshot>,
     pub active: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub placement: Option<WindowPlacement>,
+}
+
+/// Where a window was on screen and how big, in logical pixels as GPUI
+/// reports them: from the top left of its display on macOS, of the whole
+/// desktop elsewhere.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WindowPlacement {
+    /// The stable id of the display it was on, when the platform has one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display: Option<String>,
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
+    /// Maximized; the position and size are then those it returns to.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub maximized: bool,
 }
 
 /// The open windows, in the order they were opened.
@@ -172,7 +191,7 @@ impl SessionStore {
             serde_json::from_slice(&json).with_context(|| format!("parsing {}", path.display()))?;
         let mut windows = file.windows;
         if windows.is_empty() && !file.tabs.is_empty() {
-            windows.push(WindowSession { tabs: file.tabs, active: file.active });
+            windows.push(WindowSession { tabs: file.tabs, active: file.active, placement: None });
         }
 
         for window in &mut windows {
@@ -252,7 +271,7 @@ mod tests {
     }
 
     fn one_window(tabs: Vec<TabSnapshot>, active: usize) -> Session {
-        Session { windows: vec![WindowSession { tabs, active }] }
+        Session { windows: vec![WindowSession { tabs, active, placement: None }] }
     }
 
     #[test]
@@ -279,8 +298,19 @@ mod tests {
         ];
         let session = Session {
             windows: vec![
-                WindowSession { tabs: first, active: 1 },
-                WindowSession { tabs: vec![tab(4, Some("second window"))], active: 0 },
+                WindowSession { tabs: first, active: 1, placement: None },
+                WindowSession {
+                    tabs: vec![tab(4, Some("second window"))],
+                    active: 0,
+                    placement: Some(WindowPlacement {
+                        display: Some("37D8832A-2D66-02CA-B9F7-8F30A301B230".into()),
+                        x: -1200,
+                        y: 40,
+                        width: 1100,
+                        height: 720,
+                        maximized: true,
+                    }),
+                },
             ],
         };
 

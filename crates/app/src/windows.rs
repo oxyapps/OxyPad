@@ -6,6 +6,8 @@
 //! Tab ids are unique across windows, since unsaved text is backed up by
 //! tab id, and so are the numbers of untitled tabs ("new 3").
 
+pub mod placement;
+
 use std::{
     sync::{Arc, Mutex},
     time::{Duration, Instant},
@@ -123,7 +125,9 @@ pub fn init(launch: Vec<LaunchItem>, cx: &mut App) {
 }
 
 /// Opens a window showing `content`, then the files in `launch`. It is
-/// placed a little below and right of `near`, or of the last window.
+/// placed a little below and right of `near`; else where `content` says it
+/// was, if that still fits on screen; else a little below and right of the
+/// last window.
 pub fn open(content: WindowSession, launch: Vec<LaunchItem>, near: Option<Bounds<Pixels>>, cx: &mut App) {
     let base = if cfg!(target_os = "macos") {
         WindowOptions {
@@ -134,17 +138,22 @@ pub fn open(content: WindowSession, launch: Vec<LaunchItem>, near: Option<Bounds
         // Windows and Linux draw the title bar themselves to host the menu bar.
         TitleBar::window_options()
     };
-    let bounds = match near {
-        Some(near) => Bounds { origin: near.origin + point(CASCADE, CASCADE), size: near.size },
-        None => {
+    let restored = content.placement.as_ref().and_then(|saved| placement::restore(saved, cx));
+    let (window_bounds, display_id) = match (near, restored) {
+        (Some(near), _) => {
+            (WindowBounds::Windowed(Bounds { origin: near.origin + point(CASCADE, CASCADE), size: near.size }), None)
+        }
+        (None, Some((bounds, display))) => (bounds, Some(display)),
+        (None, None) => {
             let shift = CASCADE * cx.global::<Windows>().open.len() as f32;
             let centered = Bounds::centered(None, size(px(1100.), px(720.)), cx);
-            Bounds { origin: centered.origin + point(shift, shift), size: centered.size }
+            (WindowBounds::Windowed(Bounds { origin: centered.origin + point(shift, shift), size: centered.size }), None)
         }
     };
     let options = WindowOptions {
-        window_bounds: Some(WindowBounds::Windowed(bounds)),
-        window_min_size: Some(size(px(480.), px(320.))),
+        window_bounds: Some(window_bounds),
+        display_id,
+        window_min_size: Some(placement::MIN_SIZE),
         app_id: Some("org.oxyapps.oxypad".into()),
         ..base
     };
