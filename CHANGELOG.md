@@ -7,6 +7,8 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-21
+
 ### Fixed
 
 - Tabs are drawn to the tab width set in Settings. On Windows a tab took no space at all,
@@ -97,6 +99,7 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Settings ▸ General ▸ Troubleshooting or with `oxypad --log`: what OxyPad does and how
   long each step takes, such as saving the session and quitting.
 
-[Unreleased]: https://github.com/oxyapps/OxyPad/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/oxyapps/OxyPad/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/oxyapps/OxyPad/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/oxyapps/OxyPad/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/oxyapps/OxyPad/releases/tag/v0.1.0
