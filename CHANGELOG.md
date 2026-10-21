@@ -7,11 +7,14 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-21
+
 ### Added
 
 - Each window opens where it was when OxyPad was closed, at the same size and on the same
-  display, and on Windows and Linux maximized if it was. A window that no longer fits there, such as one last used
-  on an external monitor that is now unplugged, opens centered on the main display.
+  display, and on Windows and Linux maximized if it was. A window that no longer fits
+  there, such as one last used on an external monitor that is now unplugged, opens
+  centered on the main display.
 
 ### Removed
 
@@ -109,7 +112,8 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Settings ▸ General ▸ Troubleshooting or with `oxypad --log`: what OxyPad does and how
   long each step takes, such as saving the session and quitting.
 
-[Unreleased]: https://github.com/oxyapps/OxyPad/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/oxyapps/OxyPad/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/oxyapps/OxyPad/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/oxyapps/OxyPad/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/oxyapps/OxyPad/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/oxyapps/OxyPad/releases/tag/v0.1.0
