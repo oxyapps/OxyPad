@@ -27,3 +27,8 @@ tempfile = "3"
 lto = "thin"
 codegen-units = 1
 strip = true
+
+# gpui-kit's editor draws a tab as whatever the platform shaper makes of it
+# (zero width on Windows), so the vendored copy lays tabs out to tab stops.
+[patch.crates-io]
+gpui-base = { path = "vendor/gpui-base" }

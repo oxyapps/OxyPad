@@ -7,6 +7,12 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Tabs are drawn to the tab width set in Settings. On Windows a tab took no space at all,
+  so code indented with tabs (Go, PowerShell) showed flush left while the indentation
+  guides still marked its levels.
+
 ## [0.1.1] - 2026-10-21
 
 ### Changed
