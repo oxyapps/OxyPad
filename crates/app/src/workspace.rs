@@ -3,7 +3,7 @@ use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     rc::Rc,
-    sync::Arc,
+    sync::{Arc, LazyLock},
     time::Duration,
 };
 
@@ -702,14 +702,12 @@ impl Workspace {
     /// another one loses its unsaved changes, so it asks first.
     fn should_close(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
         if windows::count(cx) <= 1 {
+            // Quitting reads every window's workspace, this one included,
+            // which cannot be read while it is being updated here: quit
+            // once this has returned, as the Quit command does.
             log::info!("closing the last window");
-            if windows::quit_needs_confirmation(cx) {
-                windows::request_quit(cx);
-                return false;
-            }
-            crate::diagnostics::watch_exit();
-            windows::save_now(cx);
-            return true;
+            cx.defer(windows::request_quit);
+            return false;
         }
         let dirty = self.dirty_count(cx);
         if dirty == 0 || self.close_confirmed {
@@ -1149,7 +1147,15 @@ impl Render for Workspace {
             .on_action(cx.listener(Self::on_about))
             .on_drop(cx.listener(Self::on_drop_paths))
             .when(cfg!(not(target_os = "macos")), |this| {
-                this.child(TitleBar::new().child(self.app_menu_bar.clone()))
+                this.child(
+                    TitleBar::new().child(
+                        h_flex()
+                            .items_center()
+                            .gap_1()
+                            .child(img(TITLE_BAR_ICON.clone()).size_4().flex_shrink_0())
+                            .child(self.app_menu_bar.clone()),
+                    ),
+                )
             })
             .child(self.render_toolbar(cx))
             .child(self.render_tab_bar(cx))
@@ -1157,6 +1163,12 @@ impl Render for Workspace {
             .child(self.render_status_bar(cx))
     }
 }
+
+/// OxyPad's icon beside the menus in the title bar of Windows and Linux,
+/// drawn at 16 points from a file sharp up to 300% scaling.
+static TITLE_BAR_ICON: LazyLock<Arc<Image>> = LazyLock::new(|| {
+    Arc::new(Image::from_bytes(ImageFormat::Png, include_bytes!("../../../oxypad-icons/png/oxypad-48.png").to_vec()))
+});
 
 /// `text` cut to `max` characters, with an ellipsis when cut.
 fn shortened(text: &str, max: usize) -> String {

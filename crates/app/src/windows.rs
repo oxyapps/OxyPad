@@ -280,8 +280,8 @@ fn autosave(cx: &mut App) {
     .detach();
 }
 
-/// Writes the session now, before quitting or closing the last window.
-pub fn save_now(cx: &mut App) {
+/// Writes the session now, before quitting.
+fn save_now(cx: &mut App) {
     let Some(store) = cx.global::<Windows>().store.clone() else { return };
     let started = Instant::now();
     let session = session(cx);
@@ -329,11 +329,6 @@ fn changes_lost_on_quit(cx: &App) -> usize {
         return 0;
     }
     workspaces(cx).iter().map(|workspace| workspace.read(cx).dirty_count(cx)).sum()
-}
-
-/// Whether quitting now needs the user's confirmation.
-pub fn quit_needs_confirmation(cx: &App) -> bool {
-    changes_lost_on_quit(cx) > 0
 }
 
 /// Quits, first asking in the front window about unsaved changes that
