@@ -7,6 +7,36 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Text operations from Notepad++ and MacPad++ in the Edit menu:
+  - Indent and unindent (Mod-] and Mod-[), following the tab width and hard-tab settings.
+  - Convert case: UPPERCASE, lowercase, Proper Case and Sentence case (each also in a
+    "blend" form that leaves the other letters alone), iNVERT cASE and ranDOm CasE.
+  - Line operations: duplicate (Mod-Shift-D), join, move up and down, insert a blank line above or
+    below, reverse, randomize, and remove duplicate, consecutive duplicate, empty and blank
+    lines.
+  - Sort lines in 14 ways, ascending and descending: lexicographically, ignoring case, by
+    locale, as integers, as decimals with a comma or a dot, and by length. A numeric sort that
+    meets a line it cannot read says which one and leaves the text untouched.
+  - Trim leading and trailing spaces, trim and join, and convert between tabs and spaces
+    (all, or leading only).
+  - Toggle line comment (Mod-/) and block comment (Mod-Alt-/) for the language of the tab.
+- Revert to Saved in the tab's context menu: throws away the unsaved changes of a tab with a
+  file, after asking, and reads the file again.
+- The status bar shows how many characters are selected (`Sel 16`, or `Selections: 3` with
+  several carets), as MacPad++ and Notepad++ do.
+- Zoom, as in MacPad++: View ▸ Zoom In, Zoom Out and Actual Size (Mod-+, Mod--, Mod-0), Mod
+  with the scroll wheel, and pinching on a trackpad. Each tab keeps its own zoom, and the
+  status bar shows it as a percentage; click it for a menu with the same three choices.
+
+- A password generator (Tools ▸ Password Generator…, the key button in the toolbar, or
+  Mod-Alt-P), with the same rules as MacPad++'s: the length is shared out among uppercase,
+  lowercase, numbers and symbols (5, 5, 4 and 2 of 16 by default), setting one kind
+  adjusts the others, 0 leaves a kind out, and ambiguous characters can be left out.
+  It copies the password or inserts it at the cursor (Return inserts), and remembers its
+  settings.
+
 ## [0.3.0] - 2026-10-21
 
 ### Added

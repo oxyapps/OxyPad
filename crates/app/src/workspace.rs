@@ -15,7 +15,7 @@ use gpui_kit::{
         button::{Button, ButtonVariants},
         h_flex,
         link::Link,
-        menu::AppMenuBar,
+        menu::{AppMenuBar, DropdownMenu},
         notification::Notification,
         status_bar::StatusBar,
         v_flex,
@@ -23,17 +23,18 @@ use gpui_kit::{
     prelude::FluentBuilder,
     *,
 };
-use oxypad_core::{Document, ExternalChange, language_for_path};
+use oxypad_core::{Document, EditOp, EditProblem, ExternalChange, language_for_path};
 use oxypad_tail::ResetReason;
 use oxypad_session::{TabKind, TabSnapshot, ThemePreference, WindowPlacement, WindowSession};
 
 use crate::{
     actions::*,
     compare_tab::{CompareSource, CompareTab},
+    edit_actions::on_edit_actions,
     editor_tab::EditorTab,
     log_tab::{LogStatus, LogTab},
     preferences::{self, AppPreferences},
-    print, syntax, windows,
+    password, print, syntax, windows,
 };
 
 mod tab_bar;
@@ -281,6 +282,7 @@ impl Workspace {
         tab.update(cx, |tab, cx| {
             tab.set_cursor(snapshot.cursor, window, cx);
             tab.set_read_only(snapshot.read_only, cx);
+            tab.set_zoom(snapshot.zoom, cx);
         });
         Some(TabView::Editor(tab))
     }
@@ -967,6 +969,34 @@ impl Workspace {
         }
     }
 
+    /// Runs an Edit menu operation on the active editor tab.
+    fn run_edit(&mut self, op: EditOp, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(tab) = self.active_editor() else { return };
+        if tab.read(cx).is_read_only() {
+            show_notification(window, cx, Notification::warning(t!("edit.read_only").to_string()));
+            return;
+        }
+        if let Err(problem) = tab.update(cx, |tab, cx| tab.edit(op, window, cx)) {
+            let message = match problem {
+                EditProblem::NoComments => t!("edit.no_comments").to_string(),
+                EditProblem::NotANumber { line } => t!("edit.sort_not_number", line = line).to_string(),
+            };
+            show_notification(window, cx, Notification::warning(message));
+        }
+    }
+
+    /// Zooms the text of the active editor tab only.
+    fn zoom_active(&mut self, zoom: impl FnOnce(&mut EditorTab, &mut Context<EditorTab>), cx: &mut Context<Self>) {
+        if let Some(tab) = self.active_editor() {
+            tab.update(cx, |tab, cx| zoom(tab, cx));
+        }
+    }
+
+    fn on_generate_password(&mut self, _: &GeneratePassword, window: &mut Window, cx: &mut Context<Self>) {
+        let target = self.active_editor().filter(|tab| !tab.read(cx).is_read_only());
+        password::open(target, window, cx);
+    }
+
     fn on_about(&mut self, _: &About, window: &mut Window, cx: &mut Context<Self>) {
         let icon = Arc::new(Image::from_bytes(
             ImageFormat::Png,
@@ -1033,6 +1063,24 @@ impl Workspace {
                 let tab = tab.read(cx);
                 let document = tab.document();
                 let cursor = tab.cursor(cx);
+                let (selected, selections) = tab.selection(cx);
+                let mut position = t!("status.position", line = cursor.line + 1, column = cursor.character + 1).to_string();
+                if selections > 1 {
+                    position += &format!("  ·  {}", t!("status.selections", count = selections));
+                } else if selected > 0 {
+                    position += &format!("  ·  {}", t!("status.selected", count = selected));
+                }
+                let zoom = Button::new("zoom")
+                    .label(format!("{}%", tab.zoom_percent(cx)))
+                    .ghost()
+                    .xsmall()
+                    .tooltip(t!("status.zoom"))
+                    .dropdown_menu_with_anchor(Anchor::BottomRight, |menu, _, _| {
+                        menu.menu(t!("menu.zoom_in"), Box::new(ZoomIn))
+                            .menu(t!("menu.zoom_out"), Box::new(ZoomOut))
+                            .separator()
+                            .menu(t!("menu.actual_size"), Box::new(ZoomReset))
+                    });
                 let path = document.path().map_or_else(|| t!("status.untitled").to_string(), display_path);
                 let problem = tab.problem().map(|problem| {
                     let message = t!("status.problem", line = problem.line + 1, message = shortened(&problem.message, 80));
@@ -1058,7 +1106,8 @@ impl Workspace {
                     .left(item(path.into()))
                     .when_some(problem, |bar, problem| bar.left(problem))
                     .when(tab.is_read_only(), |bar| bar.right(item(t!("status.read_only").into())))
-                    .right(item(t!("status.position", line = cursor.line + 1, column = cursor.character + 1).to_string().into()))
+                    .right(item(position.into()))
+                    .right(zoom)
                     .right(item(tab.language(cx)))
                     .right(item(document.encoding().to_string().into()))
                     .right(item(document.line_ending().label().into()))
@@ -1129,7 +1178,7 @@ impl Render for Workspace {
         self.sync_window_title(window, cx);
         let content = self.tabs.get(self.active).map(TabView::view);
 
-        v_flex()
+        let workspace = v_flex()
             .id("workspace")
             .key_context(WORKSPACE_CONTEXT)
             .track_focus(&self.focus_handle)
@@ -1154,7 +1203,12 @@ impl Render for Workspace {
             .on_action(cx.listener(Self::on_previous_change))
             .on_action(cx.listener(Self::on_refresh_compare))
             .on_action(cx.listener(Self::on_about))
-            .on_drop(cx.listener(Self::on_drop_paths))
+            .on_action(cx.listener(Self::on_generate_password))
+            .on_action(cx.listener(|this, _: &ZoomIn, _, cx| this.zoom_active(|tab, cx| tab.zoom_in(cx), cx)))
+            .on_action(cx.listener(|this, _: &ZoomOut, _, cx| this.zoom_active(|tab, cx| tab.zoom_out(cx), cx)))
+            .on_action(cx.listener(|this, _: &ZoomReset, _, cx| this.zoom_active(|tab, cx| tab.reset_zoom(cx), cx)))
+            .on_drop(cx.listener(Self::on_drop_paths));
+        on_edit_actions(workspace, cx, Self::run_edit)
             .when(cfg!(not(target_os = "macos")), |this| {
                 this.child(
                     TitleBar::new().child(

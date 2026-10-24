@@ -2898,6 +2898,11 @@ impl<M: InputModeKind> InputBaseState<M> {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        // Cmd (Ctrl elsewhere) with the wheel zooms the text, which the
+        // application handles; it must not scroll as well.
+        if event.modifiers.secondary() {
+            return;
+        }
         let line_height = self
             .last_layout
             .as_ref()
@@ -4181,6 +4186,50 @@ impl<M: InputModeKind> InputBaseState<M> {
                 cx.notify();
             }
         }
+    }
+
+    /// Every selection as a byte range, in document order; empty ranges are carets.
+    pub fn selection_ranges(&self) -> Vec<std::ops::Range<usize>> {
+        let mut ranges: Vec<_> = self.selections.iter().map(|selection| selection.start..selection.end).collect();
+        ranges.sort_by_key(|range| range.start);
+        ranges
+    }
+
+    /// Applies `edits` (disjoint byte ranges of the current text with their
+    /// replacements) as one undo step, then selects `selections`, byte ranges
+    /// of the new text; the first is the active one. With no `selections`
+    /// the cursors stay where the edits leave them.
+    pub fn edit_ranges(
+        &mut self,
+        edits: &[(std::ops::Range<usize>, String)],
+        selections: &[std::ops::Range<usize>],
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.with_edits_allowed(|this| {
+            this.undo_manager.set_pending_intent(EditIntent::Atomic);
+            this.replace_text_in_ranges(edits, window, cx);
+            if !selections.is_empty() {
+                let len = this.text.len();
+                let selections: Vec<CursorSelection> = selections
+                    .iter()
+                    .map(|range| CursorSelection::new(this.selections.generate_id(), range.start.min(len), range.end.min(len)))
+                    .collect();
+                this.selections.replace_all(selections);
+                this.update_preferred_column();
+                cx.notify();
+            }
+        });
+    }
+
+    /// How many selections there are: more than one with several carets.
+    pub fn selection_count(&self) -> usize {
+        self.selections.len()
+    }
+
+    /// How many characters the active selection holds, for the status bar.
+    pub fn selected_char_count(&self) -> usize {
+        self.selected_text().len_chars()
     }
 
     /// Return the active selection's text, borrowed out of the [`Rope`]

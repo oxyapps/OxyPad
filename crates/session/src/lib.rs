@@ -80,6 +80,10 @@ pub struct TabSnapshot {
     /// Edit tabs: the text cannot be changed until this is turned off.
     #[serde(default, skip_serializing_if = "is_false")]
     pub read_only: bool,
+    /// Edit tabs: points the text is zoomed from the font size. Lives and dies
+    /// with the tab: closing the tab leaves no trace of it in the session.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub zoom: i32,
     /// Edit tabs: the user kept this text over changes another program made
     /// to the file, so saving asks before overwriting them.
     #[serde(default, skip_serializing_if = "is_false")]
@@ -251,6 +255,10 @@ fn is_false(value: &bool) -> bool {
     !value
 }
 
+fn is_zero(value: &i32) -> bool {
+    *value == 0
+}
+
 fn hash(text: &str) -> u64 {
     let mut hasher = DefaultHasher::new();
     text.hash(&mut hasher);
@@ -294,7 +302,7 @@ mod tests {
                 color: Some(TabColor::Cyan),
                 ..Default::default()
             },
-            TabSnapshot { id: 3, path: Some("/etc/hosts".into()), read_only: true, ..Default::default() },
+            TabSnapshot { id: 3, path: Some("/etc/hosts".into()), read_only: true, zoom: 4, ..Default::default() },
         ];
         let session = Session {
             windows: vec![
@@ -331,6 +339,20 @@ mod tests {
         assert_eq!(session.windows[0].active, 1);
         let tab = &session.windows[0].tabs[0];
         assert!(!tab.pinned && !tab.read_only && tab.color.is_none());
+    }
+
+    #[test]
+    fn a_zoomed_tab_keeps_its_zoom_and_a_closed_one_leaves_none() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut store = SessionStore::at(dir.path());
+        let zoomed = TabSnapshot { zoom: -3, ..tab(1, Some("a")) };
+        store.save(&one_window(vec![zoomed, tab(2, Some("b"))], 0)).unwrap();
+        let loaded = store.load().unwrap().unwrap();
+        assert_eq!((loaded.windows[0].tabs[0].zoom, loaded.windows[0].tabs[1].zoom), (-3, 0));
+        // Only open tabs are in the session, so closing the zoomed one drops its zoom.
+        store.save(&one_window(vec![tab(2, Some("b"))], 0)).unwrap();
+        let json = fs::read_to_string(dir.path().join(SESSION_FILE)).unwrap();
+        assert!(!json.contains("zoom"));
     }
 
     #[test]

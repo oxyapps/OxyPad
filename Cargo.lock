@@ -4443,6 +4443,8 @@ dependencies = [
  "anyhow",
  "chardetng",
  "encoding_rs",
+ "getrandom 0.3.4",
+ "serde",
  "similar 3.2.0",
  "tempfile",
 ]

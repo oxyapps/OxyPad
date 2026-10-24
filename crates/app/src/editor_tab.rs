@@ -6,10 +6,13 @@ use std::{
 use anyhow::{Context as _, Result};
 use gpui_kit::{
     base::input::{Diagnostic, DiagnosticSeverity},
-    component::input::{Editor, EditorState, InputEvent, Position, TabSize},
+    component::{
+        ActiveTheme,
+        input::{Editor, EditorState, InputEvent, Position, TabSize},
+    },
     *,
 };
-use oxypad_core::{Document, ExternalChange};
+use oxypad_core::{Document, EditOp, EditProblem, EditSettings, ExternalChange, comment_symbols, plan_edit};
 use oxypad_lint::Problem;
 use ropey::LineType;
 use oxypad_session::{Preferences, TabKind, TabSnapshot};
@@ -18,6 +21,13 @@ use crate::{preferences, syntax};
 
 /// How long typing must pause before the syntax is checked again.
 const CHECK_DELAY: Duration = Duration::from_millis(400);
+/// How far a tab's text is zoomed from the font size, in points, as
+/// Scintilla's zoom (and MacPad++) allow.
+const ZOOM_RANGE: std::ops::RangeInclusive<i32> = -10..=20;
+/// The smallest text size a zoom may reach.
+const MIN_TEXT_SIZE: f32 = 4.0;
+/// A mouse wheel notch is about one line; a trackpad sends many small pixel deltas.
+const WHEEL_PIXELS_PER_STEP: f32 = 20.0;
 /// Larger files are not checked: parsing them on every pause would cost
 /// more than it helps.
 const CHECK_LIMIT: usize = 4 * 1024 * 1024;
@@ -37,6 +47,10 @@ pub struct EditorTab {
     soft_wrap: bool,
     /// Editing is locked; the text can still be saved, searched and copied.
     read_only: bool,
+    /// Points added to the font size by zooming; only this tab is zoomed.
+    zoom: i32,
+    /// Wheel and pinch movement not yet worth a whole point of zoom.
+    zoom_remainder: f32,
     /// The cursor the status bar last showed.
     cursor: Position,
     /// The syntax error found by the last check (JSON, YAML, TOML, XML).
@@ -103,6 +117,8 @@ impl EditorTab {
             dirty,
             soft_wrap: preferences.wrap_lines,
             read_only: false,
+            zoom: 0,
+            zoom_remainder: 0.0,
             cursor: Position::default(),
             problem: None,
             edits: 0,
@@ -228,6 +244,90 @@ impl EditorTab {
         cx.notify();
     }
 
+    /// The text size relative to the font size setting: 13 pt zoomed by +2 is 115%.
+    pub fn zoom_percent(&self, cx: &App) -> u32 {
+        let size = f32::from(cx.theme().mono_font_size).max(1.0);
+        (self.text_size(cx) / size * 100.0).round() as u32
+    }
+
+    fn text_size(&self, cx: &App) -> f32 {
+        (f32::from(cx.theme().mono_font_size) + self.zoom as f32).max(MIN_TEXT_SIZE)
+    }
+
+    /// Restores a zoom saved in the session.
+    pub fn set_zoom(&mut self, zoom: i32, cx: &mut Context<Self>) {
+        self.zoom_by(zoom - self.zoom, cx);
+    }
+
+    pub fn zoom_in(&mut self, cx: &mut Context<Self>) {
+        self.zoom_by(1, cx);
+    }
+
+    pub fn zoom_out(&mut self, cx: &mut Context<Self>) {
+        self.zoom_by(-1, cx);
+    }
+
+    pub fn reset_zoom(&mut self, cx: &mut Context<Self>) {
+        self.zoom_by(-self.zoom, cx);
+    }
+
+    fn zoom_by(&mut self, points: i32, cx: &mut Context<Self>) {
+        let zoom = (self.zoom + points).clamp(*ZOOM_RANGE.start(), *ZOOM_RANGE.end());
+        if zoom != self.zoom {
+            self.zoom = zoom;
+            cx.notify();
+        }
+    }
+
+    /// Zooms by the scroll wheel (with Cmd, or Ctrl elsewhere), upward zooming in.
+    fn zoom_by_wheel(&mut self, event: &ScrollWheelEvent, cx: &mut Context<Self>) {
+        let steps = match event.delta {
+            ScrollDelta::Lines(lines) => lines.y,
+            ScrollDelta::Pixels(pixels) => f32::from(pixels.y) / WHEEL_PIXELS_PER_STEP,
+        };
+        self.zoom_by_fraction(steps, cx);
+    }
+
+    /// Zooms by a pinch on the trackpad: 0.1 is a 10% growth of the text.
+    fn zoom_by_pinch(&mut self, event: &PinchEvent, cx: &mut Context<Self>) {
+        let size = f32::from(cx.theme().mono_font_size);
+        self.zoom_by_fraction(event.delta * size, cx);
+    }
+
+    fn zoom_by_fraction(&mut self, points: f32, cx: &mut Context<Self>) {
+        self.zoom_remainder += points;
+        let whole = self.zoom_remainder.trunc();
+        self.zoom_remainder -= whole;
+        self.zoom_by(whole as i32, cx);
+    }
+
+    /// Runs an Edit menu operation on the text: one undo step, acting on the
+    /// selected lines or, with no selection, on the whole document.
+    pub fn edit(&mut self, op: EditOp, window: &mut Window, cx: &mut Context<Self>) -> Result<(), EditProblem> {
+        let editor = self.editor.read(cx);
+        let text = editor.text().to_string();
+        let (active, all) = (editor.selected_range(), editor.selection_ranges());
+        let preferences = preferences::get(cx);
+        let settings = EditSettings {
+            tab_width: preferences.tab_width as usize,
+            hard_tabs: !preferences.insert_spaces,
+            comments: comment_symbols(&editor.language_name()),
+        };
+        let Some(plan) = plan_edit(&text, active, &all, op, settings)? else { return Ok(()) };
+        let edits: Vec<_> = plan.edits.into_iter().map(|edit| (edit.range, edit.text)).collect();
+        self.editor.update(cx, |state, cx| {
+            state.edit_ranges(&edits, &plan.selections, window, cx);
+            state.focus(window, cx);
+        });
+        Ok(())
+    }
+
+    /// The characters of the selection and the number of selections, for the status bar.
+    pub fn selection(&self, cx: &App) -> (usize, usize) {
+        let editor = self.editor.read(cx);
+        (editor.selected_char_count(), editor.selection_count())
+    }
+
     pub fn title(&self) -> SharedString {
         match self.document.file_name() {
             Some(name) => name.into(),
@@ -292,6 +392,19 @@ impl EditorTab {
         self.editor.update(cx, |state, cx| {
             state.focus(window, cx);
             state.open_search(replace, cx);
+        });
+    }
+
+    /// Puts `text` in place of the selection, or at the cursor. Does nothing
+    /// to a read-only tab.
+    pub fn insert(&self, text: &str, window: &mut Window, cx: &mut App) {
+        if self.read_only {
+            return;
+        }
+        let text = SharedString::from(text.to_owned());
+        self.editor.update(cx, |state, cx| {
+            state.replace(text, window, cx);
+            state.focus(window, cx);
         });
     }
 
@@ -376,6 +489,7 @@ impl EditorTab {
             cursor: (cursor.line, cursor.character),
             follow: false,
             read_only: self.read_only,
+            zoom: self.zoom,
             kept_over_disk: self.document.overwrites_disk_changes(),
             unsaved_text: (self.dirty || self.document.path().is_none()).then(|| self.text(cx)),
             // Pinning and the color belong to the workspace, which fills them in.
@@ -385,7 +499,16 @@ impl EditorTab {
 }
 
 impl Render for EditorTab {
-    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-        Editor::new(&self.editor).bordered(false).readonly(self.read_only).h_full()
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let size = px(self.text_size(cx));
+        div()
+            .size_full()
+            .on_scroll_wheel(cx.listener(|this, event: &ScrollWheelEvent, _, cx| {
+                if event.modifiers.secondary() {
+                    this.zoom_by_wheel(event, cx);
+                }
+            }))
+            .on_pinch(cx.listener(|this, event: &PinchEvent, _, cx| this.zoom_by_pinch(event, cx)))
+            .child(Editor::new(&self.editor).bordered(false).readonly(self.read_only).h_full().text_size(size))
     }
 }

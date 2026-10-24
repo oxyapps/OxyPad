@@ -185,6 +185,39 @@ impl Workspace {
         }
     }
 
+    /// Throws away the unsaved changes of a tab with a file, after asking,
+    /// and reads the file again.
+    fn revert_tab(&mut self, id: u64, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(tab) = self.editor_by_id(id, cx) else { return };
+        let name = tab.read(cx).title();
+        if let Some(ix) = self.tab_index(id, cx) {
+            self.activate(ix, window, cx);
+        }
+        let buttons = [PromptButton::new(t!("dialog.revert")), PromptButton::cancel(t!("dialog.cancel"))];
+        let answer = window.prompt(
+            PromptLevel::Warning,
+            &t!("dialog.revert_confirm", name = name),
+            Some(&t!("dialog.revert_detail")),
+            &buttons,
+            cx,
+        );
+        cx.spawn_in(window, async move |this, cx| {
+            if answer.await.ok() != Some(0) {
+                return;
+            }
+            let _ = this.update_in(cx, |this, window, cx| {
+                // Closed or saved while the question was open.
+                if this.editor_by_id(id, cx).is_none() || !tab.read(cx).is_dirty() {
+                    return;
+                }
+                if let Err(err) = tab.update(cx, |tab, cx| tab.reload(window, cx)) {
+                    super::show_notification(window, cx, Notification::error(format!("{err:#}")));
+                }
+            });
+        })
+        .detach();
+    }
+
     /// Untitled tabs get a new name; tabs with a file are saved under one.
     fn rename_tab(&mut self, id: u64, window: &mut Window, cx: &mut Context<Self>) {
         let Some(tab) = self.editor_by_id(id, cx) else { return };
@@ -433,6 +466,12 @@ fn tab_menu(
         );
     if editor.is_some() {
         menu = menu
+            .item(
+                PopupMenuItem::new(t!("tab_menu.revert"))
+                    .icon(Lucide::Undo2)
+                    .disabled(!(path.is_some() && unsaved))
+                    .on_click(run(Workspace::revert_tab)),
+            )
             .item(PopupMenuItem::new(t!("tab_menu.rename")).icon(Lucide::PenLine).on_click(run(Workspace::rename_tab)))
             .item(
                 PopupMenuItem::new(t!("tab_menu.read_only"))

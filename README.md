@@ -1,7 +1,11 @@
 # OxyPad
 
 A fast, native, cross-platform text editor written in Rust, in the spirit of
-Notepad++ and MacPad++. Prototype stage.
+Notepad++ and MacPad++, for macOS, Windows and Linux. Prototype stage.
+
+Downloads: [GitHub Releases](https://github.com/oxyapps/OxyPad/releases)
+
+## Features
 
 - Tabs, syntax highlighting and folding for 40 languages with Lexilla, the
   lexers of Scintilla and Notepad++, find/replace
@@ -18,12 +22,22 @@ Notepad++ and MacPad++. Prototype stage.
   divider (double-click resets it), both columns scroll together, each scrolls
   sideways on its own, changed lines and words are highlighted, F7 jumps
   between differences
+- Notepad++'s text operations in the Edit menu: indent, convert case, line operations (duplicate,
+  join, move, remove duplicates and empty lines), 14 ways to sort lines, trim, tabs to spaces
+  and back, and comment toggling
+- Zoom each tab's text with View ▸ Zoom, Mod-scroll or a trackpad pinch; the zoom level
+  is in the status bar, and clicking it opens the zoom menu. The status bar also counts
+  the selected characters
+- Password generator (Tools menu, Mod-Alt-P): the length is shared out among uppercase,
+  lowercase, numbers and symbols, optionally without ambiguous characters;
+  copy the password or insert it at the cursor
 - Color themes: about 40 built in (Catppuccin, Solarized, Gruvbox, Tokyo Night,
-  Ayu, …), a color scheme remembered for each of light and dark mode, plus your own theme files
+  Ayu, …), a color scheme remembered for each of light and dark mode, plus your own
+  theme files (Settings › Appearance › Open Folder)
 - English and Portuguese (Brazil) interface, following the system language or
-  chosen in Settings; adding a language is one YAML file (see `TRANSLATING.md`)
+  chosen in Settings; adding a language is one YAML file (see [TRANSLATING.md](TRANSLATING.md))
 - Settings window (Mod-,): session, font, indentation, display, theme,
-  format of new documents, log options; saved in `settings.json` next to the session
+  format of new documents, log options
 - Sessions like Notepad++: open tabs and unsaved edits survive quitting and crashes
 - Syntax check for JSON (and JSON with comments), YAML, TOML and XML as you type: the
   error is underlined, explained on hover and shown in the status bar (click to go there)
@@ -37,83 +51,13 @@ Notepad++ and MacPad++. Prototype stage.
   Colors and keywords sets each level's color and words, and your own highlights (text,
   color, background or whole line), with a live preview
 
-## Build and run
+The session and the settings live in `~/Library/Application Support/oxypad` on
+macOS, `%LOCALAPPDATA%\oxypad` on Windows and `~/.local/share/oxypad` on Linux.
 
-Requires Rust (stable) and, on macOS, Xcode for the Metal shader compiler.
+## Download
 
-```sh
-cargo run --release -p oxypad -- file.rs -f /var/log/system.log
-```
-
-| Option         | Effect                                   |
-| -------------- | ---------------------------------------- |
-| `FILE`         | open in an editor tab                    |
-| `-f`, `--follow LOG` | follow LOG read-only, like `tail -f` |
-
-Set `OXYPAD_DATA_DIR` to keep the session somewhere other than the per-user
-data directory (useful while developing).
-
-## Syntax highlighting
-
-Highlighting and folding come from [Lexilla](https://www.scintilla.org/Lexilla.html),
-the lexers behind Scintilla, SciTE and Notepad++ (`crates/syntax`). A lexer keeps
-one style byte per byte of text and a fold level per line, so a 1 MB file costs
-about 1 MB to highlight. Lexing is incremental: after an edit it restarts at the
-edited line and stops once its results match the previous ones. Files over 2 MB
-are lexed only as far as they have been shown.
-
-The keyword lists come from SciTE's `.properties` files
-(`crates/syntax/scripts/import-scite-keywords.py` writes `src/keywords.rs`); the
-table of languages, with the lexer, keywords and colors of each, is
-`crates/syntax/src/languages.rs`.
-
-## Themes
-
-Settings › Appearance picks the mode (light, dark or matching the system) and
-the color scheme for the mode in use; light and dark each keep their own. The
-built-in themes come from [gpui-kit](https://github.com/longbridge/gpui-kit)
-(see `crates/app/themes/README.md`). To add one, put a theme file in the same
-JSON format in the themes folder (Settings › Appearance › Open Folder); it
-shows up right away, and editing it updates the open windows.
-
-## Packaging and icons
-
-Each platform has one script in `packaging/`, which the release workflow runs
-and which runs the same way locally. The version comes from one place,
-`[workspace.package] version` in `Cargo.toml` (`packaging/env.sh`), and the
-files go to `dist/`, each with a `.sha256`.
-
-| Platform | Command | Output |
-| -------- | ------- | ------ |
-| macOS    | `packaging/macos/package.sh --arch apple-silicon\|intel` (`--app-only` stops at `OxyPad.app`) | `OxyPad-<version>-macos-<arch>.dmg` |
-| Windows  | `pwsh packaging/windows/package.ps1 -Arch x64\|arm64` (needs WiX v5) | `.msi` and `-portable.zip` |
-| Linux    | `packaging/linux/package.sh` (needs nfpm for deb/rpm) | `.AppImage`, `.deb`, `.rpm`, `.tar.gz` |
-
-`scripts/install-linux.sh` installs a development build into `~/.local`.
-
-The artwork lives in `oxypad-icons/`: macOS uses `macos/oxypad-macos.icns`
-(made from `png/oxypad-1024.png` by `scripts/make-macos-icons.sh`), Windows
-embeds `oxypad.ico` in `oxypad.exe` (`crates/app/build.rs`), and Linux takes
-`png/` and `oxypad.svg`. The app id is `org.oxyapps.oxypad` everywhere (bundle
-identifier, Wayland/X11 app id, desktop file and AppStream id).
-
-## Releases
-
-OxyPad follows [Semantic Versioning](https://semver.org) and keeps a
-[changelog](CHANGELOG.md). Commits follow [Conventional Commits](https://www.conventionalcommits.org)
-(`feat:`, `fix:`, `docs:`…), and every user-visible change gets a line under
-`[Unreleased]` in `CHANGELOG.md`.
-
-To release:
-
-1. Set `version` in `Cargo.toml` (`[workspace.package]`) and move the
-   `[Unreleased]` notes in `CHANGELOG.md` under a new `## [X.Y.Z] - date` heading,
-   with its compare link at the bottom.
-2. Commit as `chore(release): X.Y.Z`, then tag and push:
-   `git tag vX.Y.Z && git push origin main vX.Y.Z`.
-3. `.github/workflows/release.yml` checks that the tag matches `Cargo.toml` and
-   that the changelog has the section, builds everything and publishes a GitHub
-   Release with the changelog section as notes and these files:
+Get the latest version from [GitHub Releases](https://github.com/oxyapps/OxyPad/releases).
+Each file has a `.sha256` next to it.
 
 | File | For |
 | ---- | --- |
@@ -123,27 +67,18 @@ To release:
 | `OxyPad-<version>-windows-x64-portable.zip` | Windows on x64, no installation |
 | `OxyPad-<version>-windows-arm64.msi` | Windows on ARM, installer |
 | `OxyPad-<version>-windows-arm64-portable.zip` | Windows on ARM, no installation |
-
-The MSI asks for two options, both on by default: a desktop shortcut, and *Edit
-with OxyPad* in the right-click menu of every file. It also lists OxyPad under
-*Open with* and in *Settings ▸ Default apps* for text and code files; Windows
-leaves choosing the default app to the user. Unattended installs take
-`INSTALLDESKTOPSHORTCUT=0` and `INSTALLCONTEXTMENU=0`. On macOS, OxyPad is
-under *Open With* in Finder for every file, never the default.
 | `OxyPad-<version>-linux-<arch>.AppImage` | Linux on x86_64 or aarch64, any distribution |
 | `OxyPad-<version>-linux-<arch>.deb` / `.rpm` | Debian and Ubuntu / Fedora and openSUSE |
 | `OxyPad-<version>-linux-<arch>.tar.gz` | Linux, the files alone |
 
-Before publishing, the workflow installs the Windows ARM64 MSI on an ARM64
-runner, checks and runs OxyPad.exe, and uninstalls it. Running the workflow by
-hand from the Actions tab builds and checks the same files without publishing
-them. The macOS DMGs are signed with a Developer ID and notarized when the
-repository has the secrets listed at the top of the workflow; otherwise they are
-signed ad hoc. The Windows builds are not signed.
+The MSI asks for two options, both on by default: a desktop shortcut, and *Edit
+with OxyPad* in the right-click menu of every file. It also lists OxyPad under
+*Open with* and in *Settings ▸ Default apps* for text and code files; Windows
+leaves choosing the default app to you. Unattended installs take
+`INSTALLDESKTOPSHORTCUT=0` and `INSTALLCONTEXTMENU=0`. The Windows builds are
+not signed yet, so SmartScreen may ask before the first run.
 
-`.github/workflows/packaging-lint.yml` checks the workflows, the packaging
-scripts, the installer XML, the desktop entry and the AppStream metadata on
-every change to them, without building.
+On macOS, OxyPad is under *Open With* in Finder for every file, never the default.
 
 ## Shortcuts
 
@@ -163,22 +98,25 @@ every change to them, without building.
 | Mod-F           | Find                       |
 | Cmd-Shift-F / Ctrl-H | Replace               |
 | Mod-Alt-T       | Follow the open file as a log (tail) and back |
+| Mod-Alt-P       | Password generator         |
+| Mod-+ / Mod-- / Mod-0 | Zoom in / out / actual size |
 | F7 / Shift-F7   | Next / previous difference in a comparison |
 
-## Layout
+## Development
 
-```text
-crates/
-  core/     document model: encodings, line endings, atomic saves, language detection
-  tail/     log follower (truncation/rotation) and log-level classification
-  session/  session and unsaved-text backups
-  syntax/   syntax highlighting and folding with Lexilla (vendored C++ in vendor/)
-  lint/     syntax checks for JSON, YAML, TOML and XML
-  app/      the GPUI application (gpui-kit)
-```
+Building, testing, packaging, releasing and the source layout are covered in
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
-`core`, `tail`, `session`, `syntax` and `lint` do not depend on the UI and are unit
-tested (`cargo test --workspace`).
+## Credits
+
+- [Notepad++](https://notepad-plus-plus.org) by Don Ho and
+  [MacPad++](https://github.com/macpad-plus-plus/macpad-plus-plus), the inspiration;
+  the password generator follows MacPad++'s rules.
+- [Lexilla and Scintilla](https://www.scintilla.org) by Neil Hodgson, the syntax
+  highlighting and folding; the keyword lists come from SciTE.
+- [gpui-kit](https://github.com/longbridge/gpui-kit), the UI components and the
+  built-in color themes, on [GPUI](https://www.gpui.rs) from the Zed editor.
+- Built with [Claude](https://claude.ai).
 
 ## License
 

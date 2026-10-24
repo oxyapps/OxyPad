@@ -9,6 +9,9 @@ license.workspace = true
 anyhow.workspace = true
 chardetng.workspace = true
 encoding_rs.workspace = true
+# The password generator's randomness. Already in the build, at this version.
+getrandom = "0.3"
+serde.workspace = true
 similar.workspace = true
 
 [dev-dependencies]

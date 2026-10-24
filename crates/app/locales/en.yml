@@ -28,11 +28,16 @@ menu:
   view: View
   word_wrap: Word Wrap
   follow_file: Follow File as Log (tail)
+  zoom_in: Zoom In
+  zoom_out: Zoom Out
+  actual_size: Actual Size
   next_difference: Next Difference
   previous_difference: Previous Difference
   refresh_comparison: Refresh Comparison
   next_tab: Next Tab
   previous_tab: Previous Tab
+  tools: Tools
+  password_generator: Password Generator…
 
 toolbar:
   new: New
@@ -41,6 +46,7 @@ toolbar:
   save_as: Save As
   undo: Undo
   redo: Redo
+  convert_case: Convert case
   find: Find
   replace: Replace
   word_wrap: Word wrap
@@ -54,6 +60,7 @@ toolbar:
   next_difference: Next difference
   compare_again: Compare again
   settings: Settings
+  password_tooltip: Password generator
 
 tabs:
   # Name of a new document that was never saved; Notepad++ style.
@@ -67,6 +74,7 @@ tab_menu:
   close: Close
   pin: Pin Tab
   unpin: Unpin Tab
+  revert: Revert to Saved
   rename: Rename…
   rename_title: Rename Tab
   rename_button: Rename
@@ -110,6 +118,9 @@ status:
   untitled: Untitled
   position: Ln %{line}, Col %{column}
   wrap: Wrap
+  selected: "Sel %{count}"
+  selections: "Selections: %{count}"
+  zoom: Zoom
   tail_following: "Tail: following"
   tail_paused: "Tail: paused while scrolled up"
   tail_truncated: "Tail: following (file was truncated)"
@@ -140,6 +151,9 @@ dialog:
   changed: “%{name}” was changed by another program.
   changed_detail: Reload it from disk to see the changes, or follow it as a read-only log?
   changed_detail_unsaved: Reload it from disk, or follow it as a read-only log? Your unsaved changes in OxyPad will be lost.
+  revert_confirm: Revert “%{name}” to the saved version?
+  revert_detail: Your unsaved changes will be lost, and the undo history is cleared.
+  revert: Revert
   reload: Reload
   follow_as_log: Follow as Log
   keep_version: Keep This Version
@@ -264,6 +278,82 @@ log_highlighting:
   gray: Gray
   restore_defaults: Restore Defaults
   save: Save
+
+edit:
+  indent: Indent
+  indent_more: Increase Line Indent
+  indent_less: Decrease Line Indent
+  convert_case: Convert Case To
+  upper: UPPERCASE
+  lower: lowercase
+  proper: Proper Case
+  proper_blend: Proper Case (Blend)
+  sentence: Sentence case
+  sentence_blend: Sentence case (blend)
+  invert: iNVERT cASE
+  random: ranDOm CasE
+  lines: Line Operations
+  duplicate: Duplicate Current Line
+  remove_duplicates: Remove Duplicate Lines
+  remove_consecutive: Remove Consecutive Duplicate Lines
+  join: Join Lines
+  move_up: Move Up Current Line
+  move_down: Move Down Current Line
+  remove_empty: Remove Empty Lines
+  remove_blank: Remove Empty Lines (Containing Blank Characters)
+  blank_above: Insert Blank Line Above Current
+  blank_below: Insert Blank Line Below Current
+  reverse: Reverse Line Order
+  randomize: Randomize Line Order
+  sort_lex_asc: Sort Lines Lexicographically Ascending
+  sort_nocase_asc: Sort Lines Lex. Ascending Ignoring Case
+  sort_locale_asc: Sort Lines in Locale Order Ascending
+  sort_int_asc: Sort Lines as Integers Ascending
+  sort_comma_asc: Sort Lines as Decimals (Comma) Ascending
+  sort_dot_asc: Sort Lines as Decimals (Dot) Ascending
+  sort_len_asc: Sort Lines by Length Ascending
+  sort_lex_desc: Sort Lines Lexicographically Descending
+  sort_nocase_desc: Sort Lines Lex. Descending Ignoring Case
+  sort_locale_desc: Sort Lines in Locale Order Descending
+  sort_int_desc: Sort Lines as Integers Descending
+  sort_comma_desc: Sort Lines as Decimals (Comma) Descending
+  sort_dot_desc: Sort Lines as Decimals (Dot) Descending
+  sort_len_desc: Sort Lines by Length Descending
+  comments: Comment/Uncomment
+  toggle_comment: Toggle Single Line Comment
+  line_comment: Single Line Comment
+  line_uncomment: Single Line Uncomment
+  block_comment: Block Comment
+  block_uncomment: Block Uncomment
+  blank_ops: Blank Operations
+  trim_trailing: Trim Trailing Space
+  trim_leading: Trim Leading Space
+  trim_both: Trim Leading and Trailing Space
+  eol_to_space: EOL to Space
+  trim_and_join: Trim Both and EOL to Space
+  tabs_to_spaces: Tab to Space
+  spaces_to_tabs: Space to Tab (All)
+  leading_spaces_to_tabs: Space to Tab (Leading)
+  read_only: This tab is read-only.
+  no_comments: Comments are not defined for this language.
+  sort_not_number: "Can’t sort as numbers: line %{line} doesn’t start with a number."
+
+password:
+  title: Password Generator
+  length: Length
+  uppercase: Uppercase (A–Z)
+  lowercase: Lowercase (a–z)
+  digits: Numbers (0–9)
+  symbols: Symbols (!#$%…)
+  counts_note: The length is shared out among the kinds of character. 0 leaves a kind out.
+  exclude_ambiguous: Exclude ambiguous characters
+  no_kinds: Choose at least one kind of character.
+  counts_exceed_length: The counts add up to more than the length (%{length}).
+  new: New Password
+  copy: Copy
+  copied: Copied
+  insert: Insert
+  insert_unavailable: Open a tab you can edit to insert the password.
 
 # Texts of the gpui-kit components OxyPad uses (editor context menu, find
 # bar, Settings search). Ours take precedence over gpui-kit's own, so they

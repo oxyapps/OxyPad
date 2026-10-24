@@ -13,7 +13,7 @@ use gpui_kit::{
 };
 
 use super::{TabView, Workspace};
-use crate::actions::*;
+use crate::{actions::*, edit_actions::*};
 
 /// What the toolbar can do for the active tab.
 struct ToolbarState {
@@ -96,6 +96,19 @@ impl Workspace {
                 menu
             });
 
+        let convert_case = tool("convert-case", Lucide::CaseSensitive, t!("toolbar.convert_case"))
+            .disabled(!state.is_editor)
+            .dropdown_menu(|menu, _, _| {
+                menu.menu(t!("edit.upper"), Box::new(CaseUpper))
+                    .menu(t!("edit.lower"), Box::new(CaseLower))
+                    .menu(t!("edit.proper"), Box::new(CaseProper))
+                    .menu(t!("edit.proper_blend"), Box::new(CaseProperBlend))
+                    .menu(t!("edit.sentence"), Box::new(CaseSentence))
+                    .menu(t!("edit.sentence_blend"), Box::new(CaseSentenceBlend))
+                    .menu(t!("edit.invert"), Box::new(CaseInvert))
+                    .menu(t!("edit.random"), Box::new(CaseRandom))
+            });
+
         h_flex()
             .id("toolbar")
             .gap_0p5()
@@ -128,6 +141,7 @@ impl Workspace {
                         this.dispatch_to_editor(Box::new(gpui_kit::component::input::Redo), window, cx)
                     })),
             )
+            .child(convert_case)
             .child(separator())
             .child(
                 action_tool("find", IconName::Search, &t!("toolbar.find"), shortcut("F"), Find, cx)
@@ -170,6 +184,15 @@ impl Workspace {
                 action_tool("refresh-compare", IconName::RefreshCw, &t!("toolbar.compare_again"), SharedString::default(), RefreshCompare, cx)
                     .disabled(!state.is_compare),
             )
+            .child(separator())
+            .child(action_tool(
+                "password",
+                Lucide::KeyRound,
+                &t!("toolbar.password_tooltip"),
+                shortcut("Alt+P"),
+                GeneratePassword,
+                cx,
+            ))
             .child(div().flex_1())
             .child(action_tool("settings", IconName::Settings, &t!("toolbar.settings"), shortcut(","), OpenSettings, cx))
     }

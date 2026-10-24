@@ -1,5 +1,7 @@
 use gpui_kit::{App, KeyBinding, actions};
 
+use crate::edit_actions::*;
+
 actions!(
     oxypad,
     [
@@ -20,6 +22,10 @@ actions!(
         NextChange,
         PreviousChange,
         RefreshCompare,
+        GeneratePassword,
+        ZoomIn,
+        ZoomOut,
+        ZoomReset,
         About,
         OpenSettings,
         Quit,
@@ -52,6 +58,33 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new("cmd-shift-f", FindReplace, context),
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("ctrl-h", FindReplace, context),
+        KeyBinding::new("secondary-alt-p", GeneratePassword, context),
+        KeyBinding::new("secondary-]", IndentMore, context),
+        KeyBinding::new("secondary-[", IndentLess, context),
+        KeyBinding::new("secondary-shift-d", DuplicateLines, context),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-ctrl-j", JoinLines, context),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-j", JoinLines, context),
+        // Notepad++'s keys: the editor itself uses Mod-Alt-Up/Down (add a cursor)
+        // and Mod-Enter, so these differ from MacPad++'s.
+        // (Ctrl-Shift-Up/Down is Notepad++'s; on macOS Ctrl-Up is Mission Control's.)
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-ctrl-up", MoveLinesUp, context),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-ctrl-down", MoveLinesDown, context),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-shift-up", MoveLinesUp, context),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-shift-down", MoveLinesDown, context),
+        KeyBinding::new("secondary-alt-enter", InsertLineAbove, context),
+        KeyBinding::new("secondary-alt-shift-enter", InsertLineBelow, context),
+        KeyBinding::new("secondary-/", ToggleComment, context),
+        KeyBinding::new("secondary-alt-/", BlockComment, context),
+        KeyBinding::new("secondary-=", ZoomIn, context),
+        KeyBinding::new("secondary-+", ZoomIn, context),
+        KeyBinding::new("secondary--", ZoomOut, context),
+        KeyBinding::new("secondary-0", ZoomReset, context),
         KeyBinding::new("f7", NextChange, context),
         KeyBinding::new("shift-f7", PreviousChange, context),
         KeyBinding::new("alt-z", ToggleSoftWrap, context),

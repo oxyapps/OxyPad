@@ -26,11 +26,16 @@ menu:
   view: Visualizar
   word_wrap: Quebra de Linha
   follow_file: Acompanhar Arquivo como Log (tail)
+  zoom_in: Aumentar Zoom
+  zoom_out: Diminuir Zoom
+  actual_size: Tamanho Real
   next_difference: Próxima Diferença
   previous_difference: Diferença Anterior
   refresh_comparison: Atualizar Comparação
   next_tab: Próxima Aba
   previous_tab: Aba Anterior
+  tools: Ferramentas
+  password_generator: Gerador de Senhas…
 
 toolbar:
   new: Novo
@@ -39,6 +44,7 @@ toolbar:
   save_as: Salvar como
   undo: Desfazer
   redo: Refazer
+  convert_case: Converter letras
   find: Buscar
   replace: Substituir
   word_wrap: Quebra de linha
@@ -52,6 +58,7 @@ toolbar:
   next_difference: Próxima diferença
   compare_again: Comparar de novo
   settings: Configurações
+  password_tooltip: Gerador de senhas
 
 tabs:
   untitled: novo %{number}
@@ -63,6 +70,7 @@ tab_menu:
   close: Fechar
   pin: Fixar Aba
   unpin: Desafixar Aba
+  revert: Reverter para o Salvo
   rename: Renomear…
   rename_title: Renomear Aba
   rename_button: Renomear
@@ -105,6 +113,9 @@ status:
   untitled: Sem título
   position: Ln %{line}, Col %{column}
   wrap: Quebra
+  selected: "Sel %{count}"
+  selections: "Seleções: %{count}"
+  zoom: Zoom
   tail_following: "Tail: acompanhando"
   tail_paused: "Tail: pausado enquanto rolado para cima"
   tail_truncated: "Tail: acompanhando (o arquivo foi truncado)"
@@ -135,6 +146,9 @@ dialog:
   changed: “%{name}” foi alterado por outro programa.
   changed_detail: Recarregar do disco para ver as alterações, ou acompanhar como log somente leitura?
   changed_detail_unsaved: Recarregar do disco, ou acompanhar como log somente leitura? Suas alterações não salvas no OxyPad serão perdidas.
+  revert_confirm: Reverter “%{name}” para a versão salva?
+  revert_detail: Suas alterações não salvas serão perdidas e o histórico de desfazer será apagado.
+  revert: Reverter
   reload: Recarregar
   follow_as_log: Acompanhar como Log
   keep_version: Manter Esta Versão
@@ -259,6 +273,82 @@ log_highlighting:
   gray: Cinza
   restore_defaults: Restaurar Padrões
   save: Salvar
+
+edit:
+  indent: Indentar
+  indent_more: Aumentar indentação
+  indent_less: Diminuir indentação
+  convert_case: Converter letras para
+  upper: MAIÚSCULAS
+  lower: minúsculas
+  proper: Modo Título
+  proper_blend: Modo Título (misturar)
+  sentence: Modo de frase
+  sentence_blend: Modo de frase (misturar)
+  invert: iNVERTER mAIÚSCULAS/mINÚSCULAS
+  random: mAiúsculAs AleAtóriAs
+  lines: Operações com linhas
+  duplicate: Duplicar linha atual
+  remove_duplicates: Remover linhas duplicadas
+  remove_consecutive: Remover linhas duplicadas consecutivas
+  join: Unir linhas
+  move_up: Mover linha atual para cima
+  move_down: Mover linha atual para baixo
+  remove_empty: Remover linhas vazias
+  remove_blank: Remover linhas vazias (contendo espaços)
+  blank_above: Inserir linha vazia acima da atual
+  blank_below: Inserir linha vazia abaixo da atual
+  reverse: Inverter ordem das linhas
+  randomize: Aleatorizar ordem das linhas
+  sort_lex_asc: Classificar em ordem crescente
+  sort_nocase_asc: Classificar em ordem crescente, ignorando maiúsculas/minúsculas
+  sort_locale_asc: Classificar na ordem do idioma, crescente
+  sort_int_asc: Classificar como inteiros em ordem crescente
+  sort_comma_asc: Classificar como decimais (vírgula) em ordem crescente
+  sort_dot_asc: Classificar como decimais (ponto) em ordem crescente
+  sort_len_asc: Classificar por tamanho em ordem crescente
+  sort_lex_desc: Classificar em ordem decrescente
+  sort_nocase_desc: Classificar em ordem decrescente, ignorando maiúsculas/minúsculas
+  sort_locale_desc: Classificar na ordem do idioma, decrescente
+  sort_int_desc: Classificar como inteiros em ordem decrescente
+  sort_comma_desc: Classificar como decimais (vírgula) em ordem decrescente
+  sort_dot_desc: Classificar como decimais (ponto) em ordem decrescente
+  sort_len_desc: Classificar por tamanho em ordem decrescente
+  comments: Inserir/Remover comentário
+  toggle_comment: Alternar comentário de linha
+  line_comment: Comentar linha
+  line_uncomment: Remover comentário de linha
+  block_comment: Comentar bloco
+  block_uncomment: Remover comentário de bloco
+  blank_ops: Operações com espaços
+  trim_trailing: Limpar espaços à direita
+  trim_leading: Limpar espaços à esquerda
+  trim_both: Limpar espaços à esquerda e à direita
+  eol_to_space: Fim de linha para espaço
+  trim_and_join: Limpar espaços e fim de linha para espaço
+  tabs_to_spaces: Tabulação para espaço
+  spaces_to_tabs: Espaço para tabulação (todos)
+  leading_spaces_to_tabs: Espaço para tabulação (no início)
+  read_only: Esta aba é somente leitura.
+  no_comments: Comentários não estão definidos para este idioma.
+  sort_not_number: "Não é possível classificar como números: a linha %{line} não começa com um número."
+
+password:
+  title: Gerador de Senhas
+  length: Tamanho
+  uppercase: Maiúsculas (A–Z)
+  lowercase: Minúsculas (a–z)
+  digits: Números (0–9)
+  symbols: Símbolos (!#$%…)
+  counts_note: O tamanho é dividido entre os tipos de caractere. 0 deixa um tipo de fora.
+  exclude_ambiguous: Excluir caracteres ambíguos
+  no_kinds: Escolha pelo menos um tipo de caractere.
+  counts_exceed_length: As quantidades somam mais que o tamanho (%{length}).
+  new: Nova Senha
+  copy: Copiar
+  copied: Copiada
+  insert: Inserir
+  insert_unavailable: Abra uma aba editável para inserir a senha.
 
 # Textos dos componentes do gpui-kit usados pelo OxyPad.
 gpui_component:

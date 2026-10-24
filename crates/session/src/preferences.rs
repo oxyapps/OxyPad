@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use oxypad_core::{LineEnding, write_atomic};
+use oxypad_core::{LineEnding, PasswordGenerator, write_atomic};
 use serde::{Deserialize, Serialize};
 
 const PREFERENCES_FILE: &str = "settings.json";
@@ -161,6 +161,8 @@ pub struct Preferences {
     pub log_initial_kib: u32,
     /// Writes a diagnostic log, for troubleshooting.
     pub diagnostic_log: bool,
+    /// The password generator's last settings.
+    pub password: PasswordGenerator,
 }
 
 impl Default for Preferences {
@@ -187,6 +189,7 @@ impl Default for Preferences {
             log_max_lines: 200_000,
             log_initial_kib: 2048,
             diagnostic_log: false,
+            password: PasswordGenerator::default(),
         }
     }
 }
@@ -223,6 +226,7 @@ impl Preferences {
         self.log_max_lines = self.log_max_lines.clamp(*Self::LOG_MAX_LINES.start(), *Self::LOG_MAX_LINES.end());
         self.log_initial_kib =
             self.log_initial_kib.clamp(*Self::LOG_INITIAL_KIB.start(), *Self::LOG_INITIAL_KIB.end());
+        self.password = self.password.normalized();
         self
     }
 }
