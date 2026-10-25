@@ -6,6 +6,9 @@
 //! Like in Notepad++, the line operations act on the selected lines or, with
 //! no selection, on the whole document. The text uses `\n` line endings.
 
+// Selections are lists of ranges that often hold just one.
+#![allow(clippy::single_range_in_vec_init)]
+
 use std::ops::Range;
 
 use crate::{

@@ -213,15 +213,7 @@ pub fn block_uncomment(
     let shifted = |position: usize| -> usize {
         let removed: usize = removals
             .iter()
-            .map(|range| {
-                if position >= range.end {
-                    range.len()
-                } else if position > range.start {
-                    position - range.start
-                } else {
-                    0
-                }
-            })
+            .map(|range| position.min(range.end).saturating_sub(range.start))
             .sum();
         position - removed
     };
