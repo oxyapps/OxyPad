@@ -7,6 +7,17 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-07
+
+### Added
+
+- Edit › JSON › Format JSON and Compress JSON, as Notepad++'s JSON Viewer plugin has them
+  (Mod-Alt-Shift-M and Mod-Alt-Shift-C; Cmd-Ctrl-Shift-M and Cmd-Ctrl-Shift-C on macOS). They act
+  on the selection or the whole document as one undo step, indent by the tab settings, and keep
+  the key order and the exact spelling of numbers and strings. Trailing commas are dropped; text
+  with comments is left alone. Invalid JSON gets a message naming the line and column, and the
+  cursor goes there. A plain-text tab formatted as JSON switches to JSON.
+
 ## [0.5.0] - 2026-11-07
 
 ### Added
@@ -169,7 +180,8 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Settings ▸ General ▸ Troubleshooting or with `oxypad --log`: what OxyPad does and how
   long each step takes, such as saving the session and quitting.
 
-[Unreleased]: https://github.com/oxyapps/OxyPad/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/oxyapps/OxyPad/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/oxyapps/OxyPad/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/oxyapps/OxyPad/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/oxyapps/OxyPad/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/oxyapps/OxyPad/compare/v0.2.0...v0.3.0
