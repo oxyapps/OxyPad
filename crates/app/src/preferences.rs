@@ -95,7 +95,24 @@ pub fn apply_appearance(window: Option<&mut Window>, cx: &mut App) {
     let theme = Theme::global_mut(cx);
     theme.mono_font_family = font;
     theme.mono_font_size = px(preferences.font_size);
+    shade_gutter(theme);
 }
+
+/// Light themes mostly leave the line numbers on the text's own white, so
+/// nothing separates them from the text: give the gutter a light gray of the
+/// text background's hue, as Notepad++ does. Dark themes already read apart,
+/// and a theme that sets `editor.gutter.background` keeps its own.
+fn shade_gutter(theme: &mut Theme) {
+    if theme.mode.is_dark() || theme.highlight_theme.style.editor_gutter_background.is_some() {
+        return;
+    }
+    let mut gutter = theme.highlight_theme.style.editor_background.unwrap_or(theme.background);
+    gutter.l = (gutter.l - GUTTER_SHADE).max(0.0);
+    std::sync::Arc::make_mut(&mut theme.highlight_theme).style.editor_gutter_background = Some(gutter);
+}
+
+/// How much darker than the text background the gutter of a light theme is.
+const GUTTER_SHADE: f32 = 0.045;
 
 /// Opens the Settings window, or brings it to the front.
 pub fn open_window(cx: &mut App) {

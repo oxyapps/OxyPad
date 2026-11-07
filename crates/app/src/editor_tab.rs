@@ -53,6 +53,9 @@ pub struct EditorTab {
     zoom_remainder: f32,
     /// The cursor the status bar last showed.
     cursor: Position,
+    /// The language picked from the Language menu, over the one the file
+    /// name gives; kept through Save As unless the new name gives one.
+    language: Option<SharedString>,
     /// The syntax error found by the last check (JSON, YAML, TOML, XML).
     problem: Option<Problem>,
     /// Counts edits, so a check of older text is not shown.
@@ -120,6 +123,7 @@ impl EditorTab {
             zoom: 0,
             zoom_remainder: 0.0,
             cursor: Position::default(),
+            language: None,
             problem: None,
             edits: 0,
             _check: Task::ready(()),
@@ -137,7 +141,7 @@ impl EditorTab {
     /// Checks the syntax in the background, after a pause in typing when
     /// `wait`, and marks the error in the editor.
     fn check_syntax(&mut self, wait: bool, cx: &mut Context<Self>) {
-        let language = syntax::detect(self.document.path());
+        let language = self.chosen_language();
         let text = self.editor.read(cx).text().clone();
         if !oxypad_lint::is_supported(&language) || text.len() > CHECK_LIMIT {
             self._check = Task::ready(());
@@ -361,9 +365,21 @@ impl EditorTab {
         });
     }
 
-    /// Re-detects the language and rebuilds the highlighter, after a Save As.
-    pub fn refresh_language(&mut self, cx: &mut Context<Self>) {
-        let language = syntax::detect(self.document.path());
+    /// The picked language, or else the one the file name gives.
+    fn chosen_language(&self) -> SharedString {
+        self.language.clone().unwrap_or_else(|| syntax::detect(self.document.path()))
+    }
+
+    /// Highlights and checks the text as `language` ("plaintext" for none),
+    /// whatever the file name says; `None` goes back to the file name's.
+    pub fn set_language(&mut self, language: Option<SharedString>, cx: &mut Context<Self>) {
+        self.language = language.filter(|language| *language != syntax::detect(self.document.path()));
+        self.refresh_language(cx);
+    }
+
+    /// Rebuilds the highlighter for the chosen language and checks the syntax again.
+    fn refresh_language(&mut self, cx: &mut Context<Self>) {
+        let language = self.chosen_language();
         self.editor.update(cx, |state, cx| state.set_highlighter(language, cx));
         self.check_syntax(false, cx);
         // The status bar shows the language.
@@ -474,6 +490,10 @@ impl EditorTab {
         let text = self.text(cx);
         self.document.save_as(&path, &text)?;
         self.dirty = false;
+        // A name with a known extension decides; otherwise the picked language stays.
+        if syntax::detect(Some(&path)) != "plaintext" {
+            self.language = None;
+        }
         self.refresh_language(cx);
         cx.notify();
         Ok(())
@@ -491,6 +511,7 @@ impl EditorTab {
             read_only: self.read_only,
             zoom: self.zoom,
             kept_over_disk: self.document.overwrites_disk_changes(),
+            language: self.language.as_ref().map(ToString::to_string),
             unsaved_text: (self.dirty || self.document.path().is_none()).then(|| self.text(cx)),
             // Pinning and the color belong to the workspace, which fills them in.
             ..Default::default()

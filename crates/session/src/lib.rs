@@ -88,6 +88,10 @@ pub struct TabSnapshot {
     /// to the file, so saving asks before overwriting them.
     #[serde(default, skip_serializing_if = "is_false")]
     pub kept_over_disk: bool,
+    /// Edit tabs: the language the user picked, over the one the file name
+    /// gives ("json"; "plaintext" for none).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
     /// Text not yet saved to `path` (or the whole text of an untitled tab).
     /// Stored in `backups/<id>.txt`, never inside `session.json`.
     #[serde(skip)]

@@ -176,3 +176,56 @@ pub fn highlight_with(text: &str, language: &str, theme: &HighlightTheme) -> Vec
         .filter_map(|(range, name)| Some((range, theme.style(name?)?)))
         .collect()
 }
+
+/// The languages a tab can be switched to from the Language menu, by
+/// display name; "plaintext" (no highlighting) is not among them.
+pub fn languages() -> impl Iterator<Item = (&'static str, &'static str)> {
+    oxypad_syntax::LANGUAGES.iter().map(|language| (language.name, label(language.name)))
+}
+
+/// A language's name as menus and the status bar show it.
+pub fn label(name: &str) -> &str {
+    match name {
+        "astro" => "Astro",
+        "bash" => "Shell (Bash)",
+        "batch" => "Batch",
+        "c" => "C",
+        "cmake" => "CMake",
+        "cpp" => "C++",
+        "csharp" => "C#",
+        "css" => "CSS",
+        "diff" => "Diff",
+        "ejs" => "EJS",
+        "elixir" => "Elixir",
+        "erb" => "ERB",
+        "go" => "Go",
+        "graphql" => "GraphQL",
+        "html" => "HTML",
+        "ini" => "INI",
+        "java" => "Java",
+        "javascript" => "JavaScript",
+        "json" => "JSON",
+        "kotlin" => "Kotlin",
+        "lua" => "Lua",
+        "make" => "Makefile",
+        "markdown" => "Markdown",
+        "perl" => "Perl",
+        "php" => "PHP",
+        "powershell" => "PowerShell",
+        "proto" => "Protocol Buffers",
+        "python" => "Python",
+        "ruby" => "Ruby",
+        "rust" => "Rust",
+        "scala" => "Scala",
+        "sql" => "SQL",
+        "svelte" => "Svelte",
+        "swift" => "Swift",
+        "toml" => "TOML",
+        "tsx" => "TSX",
+        "typescript" => "TypeScript",
+        "xml" => "XML",
+        "yaml" => "YAML",
+        "zig" => "Zig",
+        other => other,
+    }
+}

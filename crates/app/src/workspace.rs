@@ -283,6 +283,9 @@ impl Workspace {
             tab.set_cursor(snapshot.cursor, window, cx);
             tab.set_read_only(snapshot.read_only, cx);
             tab.set_zoom(snapshot.zoom, cx);
+            if let Some(language) = snapshot.language {
+                tab.set_language(Some(language.into()), cx);
+            }
         });
         Some(TabView::Editor(tab))
     }
@@ -963,6 +966,13 @@ impl Workspace {
         }
     }
 
+    fn on_set_language(&mut self, action: &SetLanguage, _: &mut Window, cx: &mut Context<Self>) {
+        if let Some(tab) = self.active_editor() {
+            let language = SharedString::from(action.language.clone());
+            tab.update(cx, |tab, cx| tab.set_language(Some(language), cx));
+        }
+    }
+
     fn on_toggle_soft_wrap(&mut self, _: &ToggleSoftWrap, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(tab) = self.active_editor() {
             tab.update(cx, |tab, cx| tab.toggle_soft_wrap(window, cx));
@@ -1108,7 +1118,7 @@ impl Workspace {
                     .when(tab.is_read_only(), |bar| bar.right(item(t!("status.read_only").into())))
                     .right(item(position.into()))
                     .right(zoom)
-                    .right(item(tab.language(cx)))
+                    .right(language_picker(tab.language(cx)))
                     .right(item(document.encoding().to_string().into()))
                     .right(item(document.line_ending().label().into()))
                     .right(
@@ -1158,6 +1168,29 @@ fn show_notification(window: &mut Window, cx: &mut App, notification: impl Into<
 
 /// Status-bar form of a path: home shown as `~`, long paths cut from the
 /// left so the file name and the items on the right stay visible.
+/// The status bar's language, a menu that switches the active tab to another one.
+fn language_picker(current: SharedString) -> impl IntoElement {
+    let label: SharedString = if current == "plaintext" {
+        t!("language.plaintext").into()
+    } else {
+        syntax::label(&current).to_owned().into()
+    };
+    Button::new("language")
+        .label(label)
+        .ghost()
+        .xsmall()
+        .tooltip(t!("status.language"))
+        .dropdown_menu_with_anchor(Anchor::BottomRight, move |menu, window, _| {
+            let pick = |language: &str| Box::new(SetLanguage { language: language.into() });
+            let menu = menu
+                .scrollable(true)
+                .max_h(window.viewport_size().height * 0.7)
+                .menu_with_check(t!("language.plaintext"), current == "plaintext", pick("plaintext"))
+                .separator();
+            syntax::languages().fold(menu, |menu, (name, label)| menu.menu_with_check(label, current == name, pick(name)))
+        })
+}
+
 fn display_path(path: &Path) -> String {
     const MAX_CHARS: usize = 70;
     let home = dirs::home_dir();
@@ -1196,6 +1229,7 @@ impl Render for Workspace {
             .on_action(cx.listener(Self::on_next_tab))
             .on_action(cx.listener(Self::on_previous_tab))
             .on_action(cx.listener(Self::on_toggle_soft_wrap))
+            .on_action(cx.listener(Self::on_set_language))
             .on_action(cx.listener(Self::on_toggle_tail))
             .on_action(cx.listener(Self::on_find))
             .on_action(cx.listener(Self::on_find_replace))

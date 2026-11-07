@@ -1,4 +1,5 @@
-use gpui_kit::{App, KeyBinding, actions};
+use gpui_kit::{Action, App, KeyBinding, actions};
+use serde::Deserialize;
 
 use crate::edit_actions::*;
 
@@ -32,6 +33,14 @@ actions!(
     ]
 );
 
+/// Highlights and checks the active tab as `language` ("json", or
+/// "plaintext" for none), from the Language menu.
+#[derive(Action, Clone, PartialEq, Eq, Deserialize)]
+#[action(namespace = oxypad, no_json)]
+pub struct SetLanguage {
+    pub language: String,
+}
+
 /// Key context set on the workspace, so these bindings apply wherever focus
 /// is inside the window.
 pub const WORKSPACE_CONTEXT: &str = "Workspace";
@@ -61,6 +70,26 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new("secondary-alt-p", GeneratePassword, context),
         KeyBinding::new("secondary-]", IndentMore, context),
         KeyBinding::new("secondary-[", IndentLess, context),
+        // Convert case: Notepad++'s keys. On macOS its Alt is Ctrl, since
+        // Option-U types an umlaut there.
+        KeyBinding::new("secondary-shift-u", CaseUpper, context),
+        KeyBinding::new("secondary-u", CaseLower, context),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("ctrl-u", CaseProper, context),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("ctrl-shift-u", CaseProperBlend, context),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-ctrl-u", CaseSentence, context),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-ctrl-shift-u", CaseSentenceBlend, context),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("alt-u", CaseProper, context),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("alt-shift-u", CaseProperBlend, context),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-alt-u", CaseSentence, context),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-alt-shift-u", CaseSentenceBlend, context),
         KeyBinding::new("secondary-shift-d", DuplicateLines, context),
         #[cfg(target_os = "macos")]
         KeyBinding::new("cmd-ctrl-j", JoinLines, context),

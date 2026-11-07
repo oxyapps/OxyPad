@@ -3,7 +3,7 @@ use gpui_kit::{
     component::{GlobalState, input},
 };
 
-use crate::{actions::*, edit_actions::*};
+use crate::{actions::*, edit_actions::*, syntax};
 
 /// Installs the menus: the system menu bar on macOS, and the menus each
 /// window's in-window `AppMenuBar` shows on Windows and Linux.
@@ -134,6 +134,11 @@ fn build() -> Vec<Menu> {
             MenuItem::action(t!("menu.next_tab"), NextTab),
             MenuItem::action(t!("menu.previous_tab"), PreviousTab),
         ]),
+        Menu::new(t!("menu.language")).items(
+            [MenuItem::action(t!("language.plaintext"), SetLanguage { language: "plaintext".into() }), MenuItem::separator()]
+                .into_iter()
+                .chain(syntax::languages().map(|(name, label)| MenuItem::action(label, SetLanguage { language: name.into() }))),
+        ),
         Menu::new(t!("menu.tools")).items([MenuItem::action(t!("menu.password_generator"), GeneratePassword)]),
     ]
 }

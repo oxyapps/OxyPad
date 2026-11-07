@@ -34,6 +34,7 @@ menu:
   refresh_comparison: Atualizar Comparação
   next_tab: Próxima Aba
   previous_tab: Aba Anterior
+  language: Linguagem
   tools: Ferramentas
   password_generator: Gerador de Senhas…
 
@@ -116,6 +117,7 @@ status:
   selected: "Sel %{count}"
   selections: "Seleções: %{count}"
   zoom: Zoom
+  language: Linguagem
   tail_following: "Tail: acompanhando"
   tail_paused: "Tail: pausado enquanto rolado para cima"
   tail_truncated: "Tail: acompanhando (o arquivo foi truncado)"
@@ -372,3 +374,6 @@ gpui_component:
   Dialog:
     ok: OK
     cancel: Cancelar
+
+language:
+  plaintext: Texto normal
