@@ -311,6 +311,7 @@ impl EditorTab {
         let editor = self.editor.read(cx);
         let text = editor.text().to_string();
         let (active, all) = (editor.selected_range(), editor.selection_ranges());
+        let whole_document = active.is_empty();
         let preferences = preferences::get(cx);
         let settings = EditSettings {
             tab_width: preferences.tab_width as usize,
@@ -323,6 +324,10 @@ impl EditorTab {
             state.edit_ranges(&edits, &plan.selections, window, cx);
             state.focus(window, cx);
         });
+        // Text just formatted as JSON is JSON: highlight and check it so.
+        if matches!(op, EditOp::Json { .. }) && whole_document && self.chosen_language() == "plaintext" {
+            self.set_language(Some("json".into()), cx);
+        }
         Ok(())
     }
 

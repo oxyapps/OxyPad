@@ -333,12 +333,17 @@ edit:
   trim_both: Trim Leading and Trailing Space
   eol_to_space: EOL to Space
   trim_and_join: Trim Both and EOL to Space
+  json: JSON
+  format_json: Format JSON
+  compress_json: Compress JSON
   tabs_to_spaces: Tab to Space
   spaces_to_tabs: Space to Tab (All)
   leading_spaces_to_tabs: Space to Tab (Leading)
   read_only: This tab is read-only.
   no_comments: Comments are not defined for this language.
   sort_not_number: "Can’t sort as numbers: line %{line} doesn’t start with a number."
+  invalid_json: "Not valid JSON at line %{line}, column %{column}."
+  json_comment: "The JSON has a comment at line %{line}, column %{column}; remove the comments to format it."
 
 password:
   title: Password Generator

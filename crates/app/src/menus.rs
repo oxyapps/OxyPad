@@ -115,6 +115,10 @@ fn build() -> Vec<Menu> {
                 MenuItem::action(t!("edit.spaces_to_tabs"), SpacesToTabs),
                 MenuItem::action(t!("edit.leading_spaces_to_tabs"), LeadingSpacesToTabs),
             ]),
+            submenu(t!("edit.json"), [
+                MenuItem::action(t!("edit.format_json"), FormatJson),
+                MenuItem::action(t!("edit.compress_json"), CompressJson),
+            ]),
             MenuItem::separator(),
             MenuItem::action(t!("menu.find"), Find),
             MenuItem::action(t!("menu.replace"), FindReplace),

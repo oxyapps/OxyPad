@@ -8,6 +8,7 @@ mod compare;
 mod document;
 mod edit_ops;
 mod fs;
+mod json_format;
 mod language;
 mod password;
 mod text_transform;
@@ -16,6 +17,7 @@ pub use comments::{CommentMode, CommentSymbols, LineComments, Replacement, block
 pub use compare::{Alignment, Cell, Row, RowKind, align, lines};
 pub use edit_ops::{EditOp, EditPlan, EditProblem, EditSettings, plan_edit};
 pub use document::{Document, ExternalChange, LineEnding, TextEncoding};
+pub use json_format::{JsonError, JsonErrorKind, format_json};
 pub use fs::{canonical_path, simplified, write_atomic};
 pub use language::language_for_path;
 pub use password::{PasswordGenerator, PasswordProblem};

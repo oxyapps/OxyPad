@@ -90,6 +90,15 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new("ctrl-alt-u", CaseSentence, context),
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("ctrl-alt-shift-u", CaseSentenceBlend, context),
+        // Format and Compress JSON: the JSON Viewer plugin's keys, Alt again Ctrl on macOS.
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-ctrl-shift-m", FormatJson, context),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-ctrl-shift-c", CompressJson, context),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-alt-shift-m", FormatJson, context),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-alt-shift-c", CompressJson, context),
         KeyBinding::new("secondary-shift-d", DuplicateLines, context),
         #[cfg(target_os = "macos")]
         KeyBinding::new("cmd-ctrl-j", JoinLines, context),

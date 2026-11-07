@@ -75,4 +75,7 @@ edit_actions! {
     TabsToSpaces => EditOp::TabsToSpaces,
     SpacesToTabs => EditOp::SpacesToTabs { leading_only: false },
     LeadingSpacesToTabs => EditOp::SpacesToTabs { leading_only: true },
+
+    FormatJson => EditOp::Json { compress: false },
+    CompressJson => EditOp::Json { compress: true },
 }

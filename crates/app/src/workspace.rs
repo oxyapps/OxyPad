@@ -990,7 +990,13 @@ impl Workspace {
             let message = match problem {
                 EditProblem::NoComments => t!("edit.no_comments").to_string(),
                 EditProblem::NotANumber { line } => t!("edit.sort_not_number", line = line).to_string(),
+                EditProblem::InvalidJson { line, column } => t!("edit.invalid_json", line = line, column = column).to_string(),
+                EditProblem::JsonComment { line, column } => t!("edit.json_comment", line = line, column = column).to_string(),
             };
+            // Put the cursor on the spot the message names.
+            if let EditProblem::InvalidJson { line, column } | EditProblem::JsonComment { line, column } = problem {
+                tab.update(cx, |tab, cx| tab.set_cursor(((line - 1) as u32, (column - 1) as u32), window, cx));
+            }
             show_notification(window, cx, Notification::warning(message));
         }
     }

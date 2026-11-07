@@ -12,6 +12,7 @@
 use std::ops::Range;
 
 use crate::{
+    json_format::{JsonErrorKind, format_json},
     comments::{CommentMode, CommentSymbols, Replacement, block_comment, block_uncomment, comment_lines},
     text_transform::{
         Case, Sort, SortError, Trim, convert_case, join_lines, remove_consecutive_duplicates, remove_duplicates,
@@ -38,6 +39,8 @@ pub enum EditOp {
     TrimAndJoin,
     TabsToSpaces,
     SpacesToTabs { leading_only: bool },
+    /// Format JSON (one member per line) or, when `compress`, Compress JSON.
+    Json { compress: bool },
 }
 
 /// What an operation needs to know besides the text.
@@ -56,6 +59,10 @@ pub enum EditProblem {
     NotANumber { line: usize },
     /// The language has no comment symbols.
     NoComments,
+    /// Format or Compress JSON met text that is not JSON; 1-based line and column.
+    InvalidJson { line: usize, column: usize },
+    /// Format or Compress JSON met a comment, which it would lose; 1-based.
+    JsonComment { line: usize, column: usize },
 }
 
 /// The changes of one operation, in the text as it was, and the selections to
@@ -123,7 +130,36 @@ pub fn plan_edit(
         EditOp::SpacesToTabs { leading_only } => transform(1, &|lines| {
             lines.iter().map(|line| spaces_to_tabs(line, settings.tab_width, leading_only)).collect()
         }),
+        EditOp::Json { compress } => json(text, active, settings, compress),
     }
+}
+
+/// Formats or compresses the JSON in the selection or, with none, the whole
+/// text. The space around it stays; the selection covers the result.
+fn json(text: &str, active: Range<usize>, settings: EditSettings, compress: bool) -> Result<Option<EditPlan>, EditProblem> {
+    let selected = !active.is_empty();
+    let target = if selected { active } else { 0..text.len() };
+    let slice = &text[target.clone()];
+    let start = target.start + (slice.len() - slice.trim_start().len());
+    let end = target.end - (slice.len() - slice.trim_end().len());
+    if start >= end {
+        return Ok(None);
+    }
+    let indent = if settings.hard_tabs { "\t".to_owned() } else { " ".repeat(settings.tab_width.max(1)) };
+    let formatted = format_json(&text[start..end], (!compress).then_some(indent.as_str())).map_err(|error| {
+        let at = start + error.offset;
+        let line_start = text[..at].rfind('\n').map_or(0, |newline| newline + 1);
+        let (line, column) = (text[..at].matches('\n').count() + 1, text[line_start..at].chars().count() + 1);
+        match error.kind {
+            JsonErrorKind::Invalid => EditProblem::InvalidJson { line, column },
+            JsonErrorKind::Comment => EditProblem::JsonComment { line, column },
+        }
+    })?;
+    if formatted == text[start..end] {
+        return Ok(None);
+    }
+    let selection = if selected { start..start + formatted.len() } else { start..start };
+    Ok(Some(EditPlan { edits: vec![Replacement { range: start..end, text: formatted }], selections: vec![selection] }))
 }
 
 fn into_plan((edit, selection): (Replacement, Range<usize>)) -> EditPlan {
@@ -490,6 +526,42 @@ mod tests {
 
     fn text_after(text: &str, selection: Range<usize>, op: EditOp, language: &str) -> String {
         run(text, selection, op, language).0
+    }
+
+    // JSON
+
+    const FORMAT: EditOp = EditOp::Json { compress: false };
+    const COMPRESS: EditOp = EditOp::Json { compress: true };
+
+    #[test]
+    fn formatting_json_keeps_the_space_around_the_document() {
+        let (text, selection) = run("\n{\"a\":[1,2]}\n", 0..0, FORMAT, "json");
+        assert_eq!(text, "\n{\n    \"a\": [\n        1,\n        2\n    ]\n}\n");
+        assert_eq!(selection, 1..1);
+        assert_eq!(text_after(&text, 0..0, COMPRESS, "json"), "\n{\"a\":[1,2]}\n");
+    }
+
+    #[test]
+    fn formatting_json_in_the_selection_only() {
+        let (text, selection) = run("x = { \"a\" : 1 };", 4..15, COMPRESS, "");
+        assert_eq!(text, "x = {\"a\":1};");
+        assert_eq!(selection, 4..11);
+    }
+
+    #[test]
+    fn formatting_json_indents_with_tabs_when_set() {
+        let settings = EditSettings { hard_tabs: true, ..settings("json") };
+        let plan = plan_edit("[1]", 0..0, &[0..0], FORMAT, settings).unwrap().unwrap();
+        assert_eq!(plan.edits[0].text, "[\n\t1\n]");
+    }
+
+    #[test]
+    fn formatting_json_says_where_the_text_is_wrong() {
+        let plan = |text: &str| plan_edit(text, 0..0, &[0..0], FORMAT, settings("json"));
+        assert_eq!(plan("{\n  \"a\": 1,\n  b: 2\n}"), Err(EditProblem::InvalidJson { line: 3, column: 3 }));
+        assert_eq!(plan("[\"é\", 1 // x\n]"), Err(EditProblem::JsonComment { line: 1, column: 9 }));
+        assert_eq!(plan("  \n "), Ok(None));
+        assert_eq!(plan("[]"), Ok(None));
     }
 
     // Lines

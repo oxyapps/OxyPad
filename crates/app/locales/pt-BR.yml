@@ -328,12 +328,17 @@ edit:
   trim_both: Limpar espaços à esquerda e à direita
   eol_to_space: Fim de linha para espaço
   trim_and_join: Limpar espaços e fim de linha para espaço
+  json: JSON
+  format_json: Formatar JSON
+  compress_json: Compactar JSON
   tabs_to_spaces: Tabulação para espaço
   spaces_to_tabs: Espaço para tabulação (todos)
   leading_spaces_to_tabs: Espaço para tabulação (no início)
   read_only: Esta aba é somente leitura.
   no_comments: Comentários não estão definidos para este idioma.
   sort_not_number: "Não é possível classificar como números: a linha %{line} não começa com um número."
+  invalid_json: "JSON inválido na linha %{line}, coluna %{column}."
+  json_comment: "O JSON tem um comentário na linha %{line}, coluna %{column}; remova os comentários para formatá-lo."
 
 password:
   title: Gerador de Senhas
