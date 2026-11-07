@@ -7,6 +7,22 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-07
+
+### Added
+
+- A Language menu, and a language picker in the status bar, to highlight and check any tab as
+  another language, untitled ones included (paste JSON into a new tab and pick JSON). The
+  choice is kept in the session; saving under a name with a known extension replaces it.
+- Keyboard shortcuts for Convert Case, Notepad++'s: UPPERCASE Mod-Shift-U, lowercase Mod-U,
+  Proper Case Alt-U (blend Alt-Shift-U), Sentence case Mod-Alt-U (blend Mod-Alt-Shift-U). On
+  macOS Alt is Ctrl there (Ctrl-U, Cmd-Ctrl-U, …), since Option-U types an umlaut.
+
+### Changed
+
+- Light themes that don't color the line-number gutter get a light gray one, so the line
+  numbers stand apart from the text.
+
 ## [0.4.0] - 2026-10-24
 
 ### Added
@@ -153,7 +169,8 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Settings ▸ General ▸ Troubleshooting or with `oxypad --log`: what OxyPad does and how
   long each step takes, such as saving the session and quitting.
 
-[Unreleased]: https://github.com/oxyapps/OxyPad/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/oxyapps/OxyPad/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/oxyapps/OxyPad/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/oxyapps/OxyPad/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/oxyapps/OxyPad/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/oxyapps/OxyPad/compare/v0.1.2...v0.2.0
