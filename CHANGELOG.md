@@ -7,6 +7,14 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-08
+
+### Changed
+
+- The Language menu and the status bar's language picker gather languages that share a first
+  letter with two others or more in a submenu for that letter (C, E, J, P, S, T), as Notepad++
+  does.
+
 ## [0.6.0] - 2026-11-07
 
 ### Added
@@ -180,7 +188,8 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Settings ▸ General ▸ Troubleshooting or with `oxypad --log`: what OxyPad does and how
   long each step takes, such as saving the session and quitting.
 
-[Unreleased]: https://github.com/oxyapps/OxyPad/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/oxyapps/OxyPad/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/oxyapps/OxyPad/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/oxyapps/OxyPad/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/oxyapps/OxyPad/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/oxyapps/OxyPad/compare/v0.3.0...v0.4.0
