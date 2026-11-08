@@ -141,10 +141,20 @@ fn build() -> Vec<Menu> {
         Menu::new(t!("menu.language")).items(
             [MenuItem::action(t!("language.plaintext"), SetLanguage { language: "plaintext".into() }), MenuItem::separator()]
                 .into_iter()
-                .chain(syntax::languages().map(|(name, label)| MenuItem::action(label, SetLanguage { language: name.into() }))),
+                .chain(syntax::language_menu().into_iter().map(|entry| match entry {
+                    syntax::LanguageEntry::One(name, label) => language_item(name, label),
+                    syntax::LanguageEntry::Letter(letter, languages) => MenuItem::submenu(
+                        Menu::new(letter.to_string())
+                            .items(languages.into_iter().map(|(name, label)| language_item(name, label))),
+                    ),
+                })),
         ),
         Menu::new(t!("menu.tools")).items([MenuItem::action(t!("menu.password_generator"), GeneratePassword)]),
     ]
+}
+
+fn language_item(name: &str, label: &str) -> MenuItem {
+    MenuItem::action(label.to_owned(), SetLanguage { language: name.into() })
 }
 
 /// A submenu of the Edit menu.

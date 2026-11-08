@@ -1186,14 +1186,24 @@ fn language_picker(current: SharedString) -> impl IntoElement {
         .ghost()
         .xsmall()
         .tooltip(t!("status.language"))
-        .dropdown_menu_with_anchor(Anchor::BottomRight, move |menu, window, _| {
+        .dropdown_menu_with_anchor(Anchor::BottomRight, move |menu, window, cx| {
             let pick = |language: &str| Box::new(SetLanguage { language: language.into() });
             let menu = menu
                 .scrollable(true)
                 .max_h(window.viewport_size().height * 0.7)
                 .menu_with_check(t!("language.plaintext"), current == "plaintext", pick("plaintext"))
                 .separator();
-            syntax::languages().fold(menu, |menu, (name, label)| menu.menu_with_check(label, current == name, pick(name)))
+            syntax::language_menu().into_iter().fold(menu, |menu, entry| match entry {
+                syntax::LanguageEntry::One(name, label) => menu.menu_with_check(label, current == name, pick(name)),
+                syntax::LanguageEntry::Letter(letter, languages) => {
+                    let current = current.clone();
+                    menu.submenu(letter.to_string(), window, cx, move |menu, _, _| {
+                        languages.iter().fold(menu, |menu, &(name, label)| {
+                            menu.menu_with_check(label, current == name, Box::new(SetLanguage { language: name.into() }))
+                        })
+                    })
+                }
+            })
         })
 }
 

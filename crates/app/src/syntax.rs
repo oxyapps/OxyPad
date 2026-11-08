@@ -183,6 +183,38 @@ pub fn languages() -> impl Iterator<Item = (&'static str, &'static str)> {
     oxypad_syntax::LANGUAGES.iter().map(|language| (language.name, label(language.name)))
 }
 
+/// How many languages must share a first letter before the Language menus
+/// gather them in a submenu, as Notepad++ does.
+const GROUP_FROM: usize = 3;
+
+/// An entry of the Language menus: a language, or a letter's submenu.
+pub enum LanguageEntry {
+    /// The language's name and label.
+    One(&'static str, &'static str),
+    /// The letter and its languages, by label.
+    Letter(char, Vec<(&'static str, &'static str)>),
+}
+
+/// The languages in alphabetical order of their labels, with the ones that
+/// share a first letter with two others or more gathered in a submenu.
+pub fn language_menu() -> Vec<LanguageEntry> {
+    let mut languages: Vec<_> = languages().collect();
+    languages.sort_by_key(|(_, label)| label.to_lowercase());
+    let mut entries = Vec::new();
+    for chunk in languages.chunk_by(|(_, a), (_, b)| first_letter(a) == first_letter(b)) {
+        if chunk.len() >= GROUP_FROM {
+            entries.push(LanguageEntry::Letter(first_letter(chunk[0].1), chunk.to_vec()));
+        } else {
+            entries.extend(chunk.iter().map(|&(name, label)| LanguageEntry::One(name, label)));
+        }
+    }
+    entries
+}
+
+fn first_letter(label: &str) -> char {
+    label.chars().next().unwrap_or_default().to_ascii_uppercase()
+}
+
 /// A language's name as menus and the status bar show it.
 pub fn label(name: &str) -> &str {
     match name {
@@ -227,5 +259,36 @@ pub fn label(name: &str) -> &str {
         "yaml" => "YAML",
         "zig" => "Zig",
         other => other,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{LanguageEntry, language_menu};
+
+    #[test]
+    fn the_language_menu_gathers_letters_with_three_languages_or_more() {
+        let entries = language_menu();
+        let letter = |wanted: char| {
+            entries.iter().find_map(|entry| match entry {
+                LanguageEntry::Letter(letter, languages) if *letter == wanted => {
+                    Some(languages.iter().map(|(_, label)| *label).collect::<Vec<_>>())
+                }
+                _ => None,
+            })
+        };
+        assert_eq!(letter('J'), Some(vec!["Java", "JavaScript", "JSON"]));
+        // Two languages are not worth a submenu.
+        assert_eq!(letter('G'), None);
+        assert!(entries.iter().any(|entry| matches!(entry, LanguageEntry::One("go", "Go"))));
+        // Every language is in the menu once.
+        let count: usize = entries
+            .iter()
+            .map(|entry| match entry {
+                LanguageEntry::One(..) => 1,
+                LanguageEntry::Letter(_, languages) => languages.len(),
+            })
+            .sum();
+        assert_eq!(count, oxypad_syntax::LANGUAGES.len());
     }
 }
