@@ -9,7 +9,9 @@ use gpui_kit::{
     component::{
         ActiveTheme,
         input::{Editor, EditorState, InputEvent, Position, TabSize},
+        text::TextView,
     },
+    prelude::FluentBuilder,
     *,
 };
 use oxypad_core::{Document, EditOp, EditProblem, EditSettings, ExternalChange, comment_symbols, plan_edit};
@@ -60,6 +62,11 @@ pub struct EditorTab {
     problem: Option<Problem>,
     /// Counts edits, so a check of older text is not shown.
     edits: u64,
+    /// The Markdown source shown rendered, in place of the editor, while the
+    /// preview is on.
+    preview: Option<SharedString>,
+    /// Holds the focus while the preview is shown, so the shortcuts keep working.
+    preview_focus: FocusHandle,
     _check: Task<()>,
     _subscriptions: Vec<Subscription>,
 }
@@ -98,6 +105,10 @@ impl EditorTab {
                     this.dirty = true;
                     this.edits += 1;
                     this.check_syntax(true, cx);
+                    // The Edit menu and reloading change the text under the preview.
+                    if this.preview.is_some() {
+                        this.preview = Some(this.text(cx).into());
+                    }
                     cx.notify();
                 }
             }),
@@ -126,6 +137,8 @@ impl EditorTab {
             language: None,
             problem: None,
             edits: 0,
+            preview: None,
+            preview_focus: cx.focus_handle(),
             _check: Task::ready(()),
             _subscriptions,
         };
@@ -322,8 +335,8 @@ impl EditorTab {
         let edits: Vec<_> = plan.edits.into_iter().map(|edit| (edit.range, edit.text)).collect();
         self.editor.update(cx, |state, cx| {
             state.edit_ranges(&edits, &plan.selections, window, cx);
-            state.focus(window, cx);
         });
+        self.focus(window, cx);
         // Text just formatted as JSON is JSON: highlight and check it so.
         if matches!(op, EditOp::Json { .. }) && whole_document && self.chosen_language() == "plaintext" {
             self.set_language(Some("json".into()), cx);
@@ -385,6 +398,9 @@ impl EditorTab {
     /// Rebuilds the highlighter for the chosen language and checks the syntax again.
     fn refresh_language(&mut self, cx: &mut Context<Self>) {
         let language = self.chosen_language();
+        if language != "markdown" {
+            self.preview = None;
+        }
         self.editor.update(cx, |state, cx| state.set_highlighter(language, cx));
         self.check_syntax(false, cx);
         // The status bar shows the language.
@@ -399,7 +415,28 @@ impl EditorTab {
     }
 
     pub fn focus(&self, window: &mut Window, cx: &mut App) {
-        self.editor.update(cx, |state, cx| state.focus(window, cx));
+        match self.preview {
+            Some(_) => self.preview_focus.focus(window, cx),
+            None => self.editor.update(cx, |state, cx| state.focus(window, cx)),
+        }
+    }
+
+    /// Whether the text is Markdown, which can be shown rendered.
+    pub fn is_markdown(&self) -> bool {
+        self.chosen_language() == "markdown"
+    }
+
+    /// Whether the rendered Markdown is shown in place of the editor.
+    pub fn is_previewing(&self) -> bool {
+        self.preview.is_some()
+    }
+
+    /// Shows the Markdown rendered, or goes back to its source. Only
+    /// Markdown has a preview.
+    pub fn set_preview(&mut self, preview: bool, window: &mut Window, cx: &mut Context<Self>) {
+        self.preview = (preview && self.is_markdown()).then(|| self.text(cx).into());
+        self.focus(window, cx);
+        cx.notify();
     }
 
     pub fn set_cursor(&self, (line, column): (u32, u32), window: &mut Window, cx: &mut App) {
@@ -409,7 +446,10 @@ impl EditorTab {
     }
 
     /// Opens the editor's find bar, with the replace field when `replace`.
-    pub fn open_search(&self, replace: bool, window: &mut Window, cx: &mut App) {
+    /// The find bar belongs to the editor, so a preview gives way to it.
+    pub fn open_search(&mut self, replace: bool, window: &mut Window, cx: &mut Context<Self>) {
+        self.preview = None;
+        cx.notify();
         self.editor.update(cx, |state, cx| {
             state.focus(window, cx);
             state.open_search(replace, cx);
@@ -423,10 +463,8 @@ impl EditorTab {
             return;
         }
         let text = SharedString::from(text.to_owned());
-        self.editor.update(cx, |state, cx| {
-            state.replace(text, window, cx);
-            state.focus(window, cx);
-        });
+        self.editor.update(cx, |state, cx| state.replace(text, window, cx));
+        self.focus(window, cx);
     }
 
     pub fn text(&self, cx: &App) -> String {
@@ -535,6 +573,17 @@ impl Render for EditorTab {
                 }
             }))
             .on_pinch(cx.listener(|this, event: &PinchEvent, _, cx| this.zoom_by_pinch(event, cx)))
-            .child(Editor::new(&self.editor).bordered(false).readonly(self.read_only).h_full().text_size(size))
+            .map(|this| match &self.preview {
+                Some(markdown) => this.track_focus(&self.preview_focus).bg(cx.theme().background).child(
+                    TextView::markdown(("markdown-preview", self.id), markdown.clone())
+                        .scrollable(true)
+                        .selectable(true)
+                        .px_6()
+                        .py_4()
+                        .text_size(size),
+                ),
+                None => this
+                    .child(Editor::new(&self.editor).bordered(false).readonly(self.read_only).h_full().text_size(size)),
+            })
     }
 }

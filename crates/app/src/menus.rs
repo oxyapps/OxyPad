@@ -126,6 +126,7 @@ fn build() -> Vec<Menu> {
         Menu::new(t!("menu.view")).items([
             MenuItem::action(t!("menu.word_wrap"), ToggleSoftWrap),
             MenuItem::action(t!("menu.follow_file"), ToggleTail),
+            MenuItem::action(t!("menu.markdown_preview"), ToggleMarkdownPreview),
             MenuItem::separator(),
             MenuItem::action(t!("menu.zoom_in"), ZoomIn),
             MenuItem::action(t!("menu.zoom_out"), ZoomOut),

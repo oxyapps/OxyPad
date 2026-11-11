@@ -41,6 +41,10 @@ Downloads: [GitHub Releases](https://github.com/oxyapps/OxyPad/releases)
 - Sessions like Notepad++: open tabs and unsaved edits survive quitting and crashes
 - Syntax check for JSON (and JSON with comments), YAML, TOML and XML as you type: the
   error is underlined, explained on hover and shown in the status bar (click to go there)
+- Markdown preview: a Markdown tab can be shown rendered (headings, lists, tables, code
+  blocks, links) and switched back to its text with the toolbar button or Mod-Shift-V
+- On Windows, a file only an administrator can save (`hosts`, files in Program Files)
+  brings an offer to restart as administrator, tabs and unsaved changes included
 - One OxyPad at a time: a file opened from File Explorer (*Open with*, *Edit with
   OxyPad*), Finder, a file manager or the command line becomes a tab of the running one
 - Notices files changed by other programs and asks what to do: reload, follow
@@ -99,6 +103,7 @@ On macOS, OxyPad is under *Open With* in Finder for every file, never the defaul
 | Cmd-Shift-F / Ctrl-H | Replace               |
 | Mod-Alt-T       | Follow the open file as a log (tail) and back |
 | Mod-Alt-P       | Password generator         |
+| Mod-Shift-V     | Markdown preview on and off |
 | Mod-+ / Mod-- / Mod-0 | Zoom in / out / actual size |
 | F7 / Shift-F7   | Next / previous difference in a comparison |
 

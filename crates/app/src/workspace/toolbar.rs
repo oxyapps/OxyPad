@@ -23,6 +23,9 @@ struct ToolbarState {
     can_save: bool,
     can_tail: bool,
     soft_wrap: bool,
+    /// The active tab is Markdown, and whether it is shown rendered.
+    is_markdown: bool,
+    previewing: bool,
     compare_has_changes: bool,
     /// Other tabs the active one can be compared with: id and title.
     compare_targets: Vec<(u64, SharedString)>,
@@ -38,6 +41,8 @@ impl Workspace {
             can_save: false,
             can_tail: false,
             soft_wrap: false,
+            is_markdown: false,
+            previewing: false,
             compare_has_changes: false,
             compare_targets: Vec::new(),
         };
@@ -49,6 +54,8 @@ impl Workspace {
                 // Following replaces the editor, so unsaved edits must be saved first.
                 state.can_tail = tab.path().is_some() && !tab.is_dirty();
                 state.soft_wrap = tab.soft_wrap();
+                state.is_markdown = tab.is_markdown();
+                state.previewing = tab.is_previewing();
             }
             Some(TabView::Log(_)) => {
                 state.is_log = true;
@@ -155,6 +162,18 @@ impl Workspace {
                 action_tool("wrap", Lucide::TextWrap, &t!("toolbar.word_wrap"), "Alt+Z".into(), ToggleSoftWrap, cx)
                     .disabled(!state.is_editor)
                     .selected(state.soft_wrap),
+            )
+            .child(
+                action_tool(
+                    "markdown-preview",
+                    Lucide::BookOpenText,
+                    &if state.previewing { t!("toolbar.preview_on") } else { t!("toolbar.preview_off") },
+                    shortcut("Shift+V"),
+                    ToggleMarkdownPreview,
+                    cx,
+                )
+                .disabled(!state.is_markdown)
+                .selected(state.previewing),
             )
             .child(separator())
             .child(

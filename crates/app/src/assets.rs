@@ -13,6 +13,7 @@ gpui_kit::assets::icon_assets!(
         CircleAlert, // syntax errors in the status bar
         KeyRound, // password generator
         CaseSensitive, // convert case
+        BookOpenText, // Markdown preview
     ]
 );
 

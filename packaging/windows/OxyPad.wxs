@@ -126,18 +126,24 @@
     <!-- Plain links to OxyPad.exe, not advertised shortcuts: an advertised one
          points at Windows Installer rather than the program, which Windows
          cannot use to open files. Each has a registry key path, so uninstalling
-         removes it. -->
+         removes it.
+
+         They have no Icon of their own, so they show the one in OxyPad.exe.
+         An Icon would be a file in %WINDIR%\Installer\{ProductCode}, a folder
+         every update replaces with another: the taskbar keeps a copy of the
+         shortcut it pins, and that copy was left pointing at an icon that no
+         longer existed, shown blank. -->
     <StandardDirectory Id="ProgramMenuFolder">
       <Component Id="StartMenuShortcut">
         <Shortcut Id="StartMenuShortcut" Name="OxyPad" Description="A fast, native, cross-platform text editor"
-          Target="[#OxyPadExe]" WorkingDirectory="INSTALLFOLDER" Icon="OxyPad.ico" />
+          Target="[#OxyPadExe]" WorkingDirectory="INSTALLFOLDER" />
         <RegistryValue Root="HKLM" Key="SOFTWARE\OxyApps\OxyPad\Shortcuts" Name="StartMenu" Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </StandardDirectory>
     <StandardDirectory Id="DesktopFolder">
       <Component Id="DesktopShortcut" Condition="INSTALLDESKTOPSHORTCUT = 1">
         <Shortcut Id="DesktopShortcut" Name="OxyPad" Description="A fast, native, cross-platform text editor"
-          Target="[#OxyPadExe]" WorkingDirectory="INSTALLFOLDER" Icon="OxyPad.ico" />
+          Target="[#OxyPadExe]" WorkingDirectory="INSTALLFOLDER" />
         <RegistryValue Root="HKLM" Key="SOFTWARE\OxyApps\OxyPad\Shortcuts" Name="Desktop" Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </StandardDirectory>

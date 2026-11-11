@@ -26,6 +26,7 @@ menu:
   view: Visualizar
   word_wrap: Quebra de Linha
   follow_file: Acompanhar Arquivo como Log (tail)
+  markdown_preview: Pré-visualização de Markdown
   zoom_in: Aumentar Zoom
   zoom_out: Diminuir Zoom
   actual_size: Tamanho Real
@@ -49,6 +50,8 @@ toolbar:
   find: Buscar
   replace: Substituir
   word_wrap: Quebra de linha
+  preview_on: "Pré-visualização de Markdown ligada: clique para voltar ao texto"
+  preview_off: "Pré-visualização de Markdown: clique para ver este arquivo renderizado"
   tail: Tail
   tail_on: "Tail ligado: clique para parar de acompanhar e editar"
   tail_off: "Tail desligado: clique para acompanhar este arquivo ao vivo (somente leitura)"
@@ -140,6 +143,10 @@ dialog:
   quit_one: Encerrar e descartar as alterações não salvas em 1 aba?
   quit_many: Encerrar e descartar as alterações não salvas em %{count} abas?
   quit_detail: A opção de lembrar as abas abertas está desligada nas Configurações, então essas alterações serão perdidas.
+  elevate: “%{name}” só pode ser salvo por um administrador.
+  elevate_detail: O OxyPad pode reiniciar como administrador. Suas abas e alterações não salvas voltam, e então você pode salvar.
+  elevate_detail_no_session: O OxyPad pode reiniciar como administrador e abrir o arquivo de novo. A opção de lembrar as abas abertas está desligada nas Configurações, então as alterações não salvas serão perdidas.
+  elevate_button: Reiniciar como Administrador
   quit_without_saving: Encerrar sem Salvar
   close_window_one: Fechar esta janela e descartar as alterações não salvas de 1 aba?
   close_window_many: Fechar esta janela e descartar as alterações não salvas de %{count} abas?
@@ -166,6 +173,9 @@ notification:
   could_not_follow: "Não foi possível acompanhar %{path}: %{error}"
   save_before_following: Salve o arquivo antes de acompanhá-lo.
   compared_tab_closed: Um dos arquivos comparados foi fechado.
+  markdown_preview: "%{name} é Markdown. Mostrar renderizado?"
+  markdown_preview_show: Pré-visualizar
+  could_not_elevate: "Não foi possível reiniciar como administrador: %{error}"
 
 about:
   version: Versão %{version}
@@ -205,6 +215,7 @@ settings:
   line_numbers: Mostrar números de linha
   indent_guides: Mostrar guias de indentação
   wrap_lines: Quebrar linhas em novas abas
+  suggest_markdown_preview: Sugerir a pré-visualização ao abrir Markdown
 
   appearance: Aparência
   theme: Tema

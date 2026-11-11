@@ -146,6 +146,8 @@ pub struct Preferences {
     pub show_indent_guides: bool,
     /// Word wrap for tabs opened from now on.
     pub wrap_lines: bool,
+    /// Offers the rendered preview when a Markdown file is opened.
+    pub suggest_markdown_preview: bool,
     pub restore_session: bool,
     /// The terminal that opens a file's folder: a preset's id, "custom" for
     /// `terminal_command`, or empty for the system's usual one.
@@ -179,6 +181,7 @@ impl Default for Preferences {
             show_line_numbers: true,
             show_indent_guides: true,
             wrap_lines: false,
+            suggest_markdown_preview: true,
             restore_session: true,
             terminal: String::new(),
             terminal_command: String::new(),

@@ -15,6 +15,7 @@ mod compare_tab;
 mod diagnostics;
 mod edit_actions;
 mod editor_tab;
+mod elevation;
 mod i18n;
 mod instance;
 mod log_highlight;
@@ -49,11 +50,15 @@ Usage: oxypad [FILE]... [-f LOG]... [--log]
 struct Args {
     items: Vec<LaunchItem>,
     log: bool,
+    /// The OxyPad that started this one as administrator, to wait for
+    /// (`--after PID`, see `elevation.rs`); not for people to use.
+    after: Option<u32>,
 }
 
 fn parse_args() -> Args {
     let mut items = Vec::new();
     let mut log = false;
+    let mut after = None;
     let mut args = std::env::args_os().skip(1);
     while let Some(arg) = args.next() {
         match arg.to_str() {
@@ -66,6 +71,7 @@ fn parse_args() -> Args {
                 std::process::exit(0);
             }
             Some("--log") => log = true,
+            Some("--after") => after = args.next().and_then(|pid| pid.to_str()?.parse().ok()),
             Some("-f" | "--follow") => match args.next() {
                 Some(path) => items.push(LaunchItem { path: PathBuf::from(path), follow: true }),
                 None => {
@@ -78,12 +84,15 @@ fn parse_args() -> Args {
             _ => items.push(LaunchItem { path: PathBuf::from(arg), follow: false }),
         }
     }
-    Args { items, log }
+    Args { items, log, after }
 }
 
 fn main() {
-    let Args { items: launch, log } = parse_args();
+    let Args { items: launch, log, after } = parse_args();
     diagnostics::init(log);
+    if let Some(pid) = after {
+        elevation::wait_for_exit(pid);
+    }
     let listener = match instance::claim(&launch) {
         instance::Claim::Primary(listener) => listener,
         instance::Claim::Forwarded => {

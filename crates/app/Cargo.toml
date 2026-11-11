@@ -57,8 +57,8 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
 ] }
 
 [target.'cfg(windows)'.dependencies]
-# The Print dialog and GDI printing, and the single-instance pipe. Already in
-# the build, at this version.
+# The Print dialog and GDI printing, the single-instance pipe, and restarting
+# as administrator (src/elevation.rs). Already in the build, at this version.
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
@@ -68,6 +68,8 @@ windows-sys = { version = "0.61", features = [
     "Win32_System_IO",
     "Win32_System_Pipes",
     "Win32_System_RemoteDesktop",
+    "Win32_System_Threading",
     "Win32_UI_Controls_Dialogs",
+    "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",
 ] }

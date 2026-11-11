@@ -7,6 +7,26 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- A rendered preview for Markdown: View › Markdown Preview, its toolbar button, or Mod-Shift-V
+  shows the tab rendered (headings, lists, tables, code blocks, links) in place of the text, and
+  again goes back to it. Opening a Markdown file, or switching a tab to Markdown in the Language
+  menu, offers the preview in a notification; Settings › Editor turns the offer off.
+- Windows: when a file can only be saved by an administrator (the `hosts` file, files in
+  Program Files), OxyPad offers to restart as administrator instead of only reporting the
+  error, as Notepad++ does. The tabs and unsaved changes come back after the restart.
+
+### Fixed
+
+- Windows: the icon of an OxyPad pinned to the taskbar went blank after an update. The Start
+  menu and desktop shortcuts pointed at an icon file the update removed; they now use the icon
+  in `OxyPad.exe`. An OxyPad pinned by an earlier version has to be unpinned and pinned again
+  once.
+- The icon was a blur at small sizes: in the title bar on Windows and Linux, and in the taskbar
+  and File Explorer lists. The 16, 20, 24 and 32 pixel icons are now drawn for their size, and
+  the title bar picks the one that matches the display's scaling.
+
 ## [0.6.1] - 2026-11-08
 
 ### Changed

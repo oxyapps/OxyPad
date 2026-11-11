@@ -28,6 +28,7 @@ menu:
   view: View
   word_wrap: Word Wrap
   follow_file: Follow File as Log (tail)
+  markdown_preview: Markdown Preview
   zoom_in: Zoom In
   zoom_out: Zoom Out
   actual_size: Actual Size
@@ -51,6 +52,8 @@ toolbar:
   find: Find
   replace: Replace
   word_wrap: Word wrap
+  preview_on: "Markdown preview is on: click to go back to the text"
+  preview_off: "Markdown preview: click to show this file rendered"
   tail: Tail
   tail_on: "Tail is on: click to stop following and edit"
   tail_off: "Tail is off: click to follow this file live (read-only)"
@@ -145,6 +148,10 @@ dialog:
   quit_one: Quit and discard the unsaved changes in 1 tab?
   quit_many: Quit and discard the unsaved changes in %{count} tabs?
   quit_detail: Remembering open tabs is turned off in Settings, so these changes will be lost.
+  elevate: “%{name}” can only be saved by an administrator.
+  elevate_detail: OxyPad can restart as administrator. Your tabs and unsaved changes come back, and then you can save.
+  elevate_detail_no_session: OxyPad can restart as administrator and open the file again. Remembering open tabs is turned off in Settings, so unsaved changes will be lost.
+  elevate_button: Restart as Administrator
   quit_without_saving: Quit Without Saving
   close_window_one: Close this window and discard the unsaved changes in 1 tab?
   close_window_many: Close this window and discard the unsaved changes in %{count} tabs?
@@ -171,6 +178,9 @@ notification:
   could_not_follow: "Could not follow %{path}: %{error}"
   save_before_following: Save the file before following it.
   compared_tab_closed: One of the compared files was closed.
+  markdown_preview: "%{name} is Markdown. Show it rendered?"
+  markdown_preview_show: Preview
+  could_not_elevate: "Could not restart as administrator: %{error}"
 
 about:
   version: Version %{version}
@@ -210,6 +220,7 @@ settings:
   line_numbers: Show line numbers
   indent_guides: Show indentation guides
   wrap_lines: Wrap lines in new tabs
+  suggest_markdown_preview: Offer the preview when opening Markdown
 
   appearance: Appearance
   theme: Theme

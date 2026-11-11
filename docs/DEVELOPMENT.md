@@ -98,7 +98,10 @@ files go to `dist/`, each with a `.sha256`.
 The artwork lives in `oxypad-icons/`: macOS uses `macos/oxypad-macos.icns`
 (made from `png/oxypad-1024.png` by `scripts/make-macos-icons.sh`), Windows
 embeds `oxypad.ico` in `oxypad.exe` (`crates/app/build.rs`), and Linux takes
-`png/` and `oxypad.svg`. The app id is `org.oxyapps.oxypad` everywhere (bundle
+`png/` and `oxypad.svg`. The icons of 32 pixels and less are not the artwork
+scaled down, which blurs, but are drawn on the pixel grid by
+`scripts/make-small-icons.py` (needs Pillow), which also rebuilds `oxypad.ico`.
+The app id is `org.oxyapps.oxypad` everywhere (bundle
 identifier, Wayland/X11 app id, desktop file and AppStream id).
 
 ## Releases

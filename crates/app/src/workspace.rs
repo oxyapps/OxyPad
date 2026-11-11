@@ -34,7 +34,7 @@ use crate::{
     editor_tab::EditorTab,
     log_tab::{LogStatus, LogTab},
     preferences::{self, AppPreferences},
-    password, print, syntax, windows,
+    elevation, password, print, syntax, windows,
 };
 
 mod tab_bar;
@@ -372,12 +372,15 @@ impl Workspace {
             Some(TabView::Editor(current)) => current.read(cx).is_pristine(cx),
             _ => false,
         };
-        self.push_tab(tab, cx);
+        self.push_tab(tab.clone(), cx);
         if replace {
             let removed = self.tabs.remove(self.active);
             self.meta.remove(&removed.id(cx));
         }
         self.activate(self.tabs.len() - 1, window, cx);
+        if let TabView::Editor(tab) = tab {
+            self.suggest_markdown_preview(&tab, window, cx);
+        }
     }
 
     fn activate(&mut self, ix: usize, window: &mut Window, cx: &mut Context<Self>) {
@@ -602,7 +605,7 @@ impl Workspace {
                 Some(0) => match tab.update(cx, |tab, cx| tab.save(cx)) {
                     Ok(()) if close => this.remove_tab(tab.read(cx).id(), window, cx),
                     Ok(()) => this.mark_changed(cx),
-                    Err(err) => show_notification(window, cx, Notification::error(format!("{err:#}"))),
+                    Err(err) => this.save_failed(&tab, err, window, cx),
                 },
                 Some(1) => this.save_tab(tab, true, close, window, cx),
                 _ => {}
@@ -621,7 +624,7 @@ impl Workspace {
             match tab.update(cx, |tab, cx| tab.save(cx)) {
                 Ok(()) if close => self.remove_tab(id, window, cx),
                 Ok(()) => {}
-                Err(err) => show_notification(window, cx, Notification::error(format!("{err:#}"))),
+                Err(err) => self.save_failed(&tab, err, window, cx),
             }
             return;
         }
@@ -648,6 +651,46 @@ impl Workspace {
                     Ok(()) if close => this.remove_tab(id, window, cx),
                     Ok(()) => this.mark_changed(cx),
                     Err(err) => show_notification(window, cx, Notification::error(format!("{err:#}"))),
+                }
+            });
+        })
+        .detach();
+    }
+
+    /// Reports that `tab` could not be saved to its file. On Windows, when
+    /// an administrator could save it (the hosts file, a file in Program
+    /// Files), offers to restart OxyPad as one, as Notepad++ does.
+    fn save_failed(&mut self, tab: &Entity<EditorTab>, err: anyhow::Error, window: &mut Window, cx: &mut Context<Self>) {
+        let (path, title) = (tab.read(cx).path().map(Path::to_path_buf), tab.read(cx).title());
+        let Some(path) = path.filter(|path| elevation::would_help(&err, path)) else {
+            show_notification(window, cx, Notification::error(format!("{err:#}")));
+            return;
+        };
+        // The session brings the unsaved text back; without it, it is lost.
+        let detail = if preferences::get(cx).restore_session {
+            t!("dialog.elevate_detail")
+        } else {
+            t!("dialog.elevate_detail_no_session")
+        };
+        let answer = window.prompt(
+            PromptLevel::Warning,
+            &t!("dialog.elevate", name = title),
+            Some(&detail),
+            &[PromptButton::new(t!("dialog.elevate_button")), PromptButton::cancel(t!("dialog.cancel"))],
+            cx,
+        );
+        cx.spawn_in(window, async move |_, cx| {
+            if answer.await != Ok(0) {
+                return;
+            }
+            let _ = cx.update(|window, cx| match elevation::restart(&path) {
+                // The new OxyPad is waiting for this one to quit.
+                Ok(true) => cx.defer(windows::request_quit),
+                // The user said no to Windows' question.
+                Ok(false) => {}
+                Err(err) => {
+                    let message = t!("notification.could_not_elevate", error = err.to_string()).to_string();
+                    show_notification(window, cx, Notification::error(message));
                 }
             });
         })
@@ -966,11 +1009,60 @@ impl Workspace {
         }
     }
 
-    fn on_set_language(&mut self, action: &SetLanguage, _: &mut Window, cx: &mut Context<Self>) {
+    fn on_set_language(&mut self, action: &SetLanguage, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(tab) = self.active_editor() {
             let language = SharedString::from(action.language.clone());
+            let was_markdown = tab.read(cx).is_markdown();
             tab.update(cx, |tab, cx| tab.set_language(Some(language), cx));
+            if !was_markdown {
+                self.suggest_markdown_preview(&tab, window, cx);
+            }
         }
+    }
+
+    fn on_toggle_markdown_preview(&mut self, _: &ToggleMarkdownPreview, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(tab) = self.active_editor() {
+            tab.update(cx, |tab, cx| tab.set_preview(!tab.is_previewing(), window, cx));
+        }
+    }
+
+    /// Offers to show `tab` rendered when it is Markdown: a notification
+    /// that goes away by itself, with a button that turns the preview on.
+    /// For a file just opened or a tab just switched to Markdown; tabs the
+    /// session restores are left alone.
+    fn suggest_markdown_preview(&mut self, tab: &Entity<EditorTab>, window: &mut Window, cx: &mut Context<Self>) {
+        let (id, title, is_markdown) = {
+            let tab = tab.read(cx);
+            (tab.id(), tab.title(), tab.is_markdown() && !tab.is_previewing())
+        };
+        if !is_markdown || !preferences::get(cx).suggest_markdown_preview {
+            return;
+        }
+        struct MarkdownSuggestion;
+        let workspace = cx.entity().downgrade();
+        let notification = Notification::info(t!("notification.markdown_preview", name = title).to_string())
+            // One at a time: the next file's suggestion replaces this one.
+            .id::<MarkdownSuggestion>()
+            .action(move |_, _, cx| {
+                let (workspace, notification) = (workspace.clone(), cx.entity().downgrade());
+                Button::new("preview").primary().small().label(t!("notification.markdown_preview_show")).on_click(
+                    move |_, window, cx| {
+                        let _ = workspace.update(cx, |this, cx| this.preview_tab(id, window, cx));
+                        let _ = notification.update(cx, |notification, cx| notification.dismiss(window, cx));
+                    },
+                )
+            })
+            // A notification with a button stays by default; this one is only a hint.
+            .autohide(true);
+        show_notification(window, cx, notification);
+    }
+
+    /// Shows the Markdown tab `id` rendered, bringing it to the front.
+    fn preview_tab(&mut self, id: u64, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(ix) = self.tabs.iter().position(|tab| tab.id(cx) == id) else { return };
+        let Some(TabView::Editor(tab)) = self.tabs.get(ix).cloned() else { return };
+        tab.update(cx, |tab, cx| tab.set_preview(true, window, cx));
+        self.activate(ix, window, cx);
     }
 
     fn on_toggle_soft_wrap(&mut self, _: &ToggleSoftWrap, window: &mut Window, cx: &mut Context<Self>) {
@@ -1245,6 +1337,7 @@ impl Render for Workspace {
             .on_action(cx.listener(Self::on_next_tab))
             .on_action(cx.listener(Self::on_previous_tab))
             .on_action(cx.listener(Self::on_toggle_soft_wrap))
+            .on_action(cx.listener(Self::on_toggle_markdown_preview))
             .on_action(cx.listener(Self::on_set_language))
             .on_action(cx.listener(Self::on_toggle_tail))
             .on_action(cx.listener(Self::on_find))
@@ -1265,7 +1358,7 @@ impl Render for Workspace {
                         h_flex()
                             .items_center()
                             .gap_1()
-                            .child(img(TITLE_BAR_ICON.clone()).size_4().flex_shrink_0())
+                            .child(img(title_bar_icon(window.scale_factor())).size_4().flex_shrink_0())
                             .child(self.app_menu_bar.clone()),
                     ),
                 )
@@ -1277,11 +1370,29 @@ impl Render for Workspace {
     }
 }
 
-/// OxyPad's icon beside the menus in the title bar of Windows and Linux,
-/// drawn at 16 points from a file sharp up to 300% scaling.
-static TITLE_BAR_ICON: LazyLock<Arc<Image>> = LazyLock::new(|| {
-    Arc::new(Image::from_bytes(ImageFormat::Png, include_bytes!("../../../oxypad-icons/png/oxypad-48.png").to_vec()))
-});
+/// OxyPad's icon beside the menus in the title bar of Windows and Linux, 16
+/// points wide: the file with that many pixels at the display's scaling
+/// (16 at 100%, 20 at 125%, 24 at 150%, 32 at 200%), so it is drawn pixel
+/// for pixel. The small ones are drawn for their size
+/// (`scripts/make-small-icons.py`); a larger one scaled down is a blur.
+fn title_bar_icon(scale_factor: f32) -> Arc<Image> {
+    macro_rules! icon {
+        ($size:literal) => {{
+            static ICON: LazyLock<Arc<Image>> = LazyLock::new(|| {
+                let png = include_bytes!(concat!("../../../oxypad-icons/png/oxypad-", $size, ".png"));
+                Arc::new(Image::from_bytes(ImageFormat::Png, png.to_vec()))
+            });
+            ICON.clone()
+        }};
+    }
+    match (16.0 * scale_factor).round() as u32 {
+        ..=16 => icon!("16"),
+        17..=20 => icon!("20"),
+        21..=24 => icon!("24"),
+        25..=32 => icon!("32"),
+        _ => icon!("48"),
+    }
+}
 
 /// `text` cut to `max` characters, with an ellipsis when cut.
 fn shortened(text: &str, max: usize) -> String {

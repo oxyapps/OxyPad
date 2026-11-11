@@ -18,6 +18,7 @@ actions!(
         PreviousTab,
         ToggleTail,
         ToggleSoftWrap,
+        ToggleMarkdownPreview,
         Find,
         FindReplace,
         NextChange,
@@ -126,6 +127,7 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new("f7", NextChange, context),
         KeyBinding::new("shift-f7", PreviousChange, context),
         KeyBinding::new("alt-z", ToggleSoftWrap, context),
+        KeyBinding::new("secondary-shift-v", ToggleMarkdownPreview, context),
         KeyBinding::new("secondary-q", Quit, None),
         KeyBinding::new("secondary-,", OpenSettings, None),
     ]);

@@ -377,7 +377,12 @@ impl Render for SettingsView {
             section(t!("settings.display"))
                 .item(switch(t!("settings.line_numbers"), |p| p.show_line_numbers, |p, v| p.show_line_numbers = v))
                 .item(switch(t!("settings.indent_guides"), |p| p.show_indent_guides, |p, v| p.show_indent_guides = v))
-                .item(switch(t!("settings.wrap_lines"), |p| p.wrap_lines, |p, v| p.wrap_lines = v)),
+                .item(switch(t!("settings.wrap_lines"), |p| p.wrap_lines, |p, v| p.wrap_lines = v))
+                .item(switch(
+                    t!("settings.suggest_markdown_preview"),
+                    |p| p.suggest_markdown_preview,
+                    |p, v| p.suggest_markdown_preview = v,
+                )),
         ]);
 
         let appearance = SettingPage::new(t!("settings.appearance")).icon(IconName::Palette).groups([
