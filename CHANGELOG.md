@@ -7,6 +7,8 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-11
+
 ### Added
 
 - A rendered preview for Markdown: View › Markdown Preview, its toolbar button, or Mod-Shift-V
@@ -208,7 +210,8 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Settings ▸ General ▸ Troubleshooting or with `oxypad --log`: what OxyPad does and how
   long each step takes, such as saving the session and quitting.
 
-[Unreleased]: https://github.com/oxyapps/OxyPad/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/oxyapps/OxyPad/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/oxyapps/OxyPad/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/oxyapps/OxyPad/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/oxyapps/OxyPad/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/oxyapps/OxyPad/compare/v0.4.0...v0.5.0
